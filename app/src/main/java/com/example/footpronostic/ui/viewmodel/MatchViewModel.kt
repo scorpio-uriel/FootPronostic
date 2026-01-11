@@ -3,61 +3,54 @@ package com.example.footpronostic.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footpronostic.data.model.SportMatch
-import com.example.footpronostic.data.repository.MatchRepository
+import com.example.footpronostic.data.model.toSportMatch
+import com.example.footpronostic.data.repository.FootballApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel gérant la logique métier des matchs et les droits d'accès.
+ * ViewModel gérant l'affichage des matchs depuis l'API externe.
  */
-class MatchViewModel(private val repository: MatchRepository = MatchRepository()) : ViewModel() {
+class MatchViewModel : ViewModel() {
+    private val apiRepository = FootballApiRepository()
 
-    // Liste des matchs observée en temps réel
     private val _matches = MutableStateFlow<List<SportMatch>>(emptyList())
     val matches: StateFlow<List<SportMatch>> = _matches.asStateFlow()
 
-    // État d'administration (déterminé par AuthViewModel)
-    private val _isAdmin = MutableStateFlow(false)
-    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
-        loadMatches()
+        loadMatchesFromApi()
     }
 
-    private fun loadMatches() {
+    fun loadMatchesFromApi() {
         viewModelScope.launch {
-            repository.getMatches().collect {
-                _matches.value = it
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            try {
+                val apiMatches = apiRepository.getTodayMatches()
+                _matches.value = apiMatches.map { it.toSportMatch() }
+            } catch (e: Exception) {
+                _errorMessage.value = "Erreur de connexion: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    /**
-     * Met à jour le statut admin du ViewModel.
-     */
-    fun setAdminStatus(admin: Boolean) {
-        _isAdmin.value = admin
+    fun refreshMatches() {
+        loadMatchesFromApi()
     }
 
-    fun addMatch(match: SportMatch) {
-        viewModelScope.launch { repository.addMatch(match) }
-    }
-
-    fun deleteMatch(matchId: String) {
-        viewModelScope.launch { repository.deleteMatch(matchId) }
-    }
-
-    /**
-     * Met à jour un match complet dans Firestore.
-     */
-    fun updateMatch(match: SportMatch) {
-        viewModelScope.launch { repository.updateMatch(match) }
-    }
-
-    fun updateScore(match: SportMatch, scoreA: Int, scoreB: Int) {
-        val updatedMatch = match.copy(scoreA = scoreA, scoreB = scoreB, status = "finished")
-        viewModelScope.launch { repository.updateMatch(updatedMatch) }
+    override fun onCleared() {
+        super.onCleared()
+        apiRepository.closeClient()
     }
 }

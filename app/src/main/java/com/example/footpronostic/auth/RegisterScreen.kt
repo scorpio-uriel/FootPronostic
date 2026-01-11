@@ -15,7 +15,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun RegisterScreen(
-    onGoToLogin: () -> Unit
+    onGoToLogin: () -> Unit,
+    onRegisterSuccess: () -> Unit = {}
 ) {
     val viewModel = remember { AuthViewModel() }
 
@@ -82,7 +83,10 @@ fun RegisterScreen(
                         viewModel.register(
                             email,
                             password,
-                            onSuccess = { message = "Compte créé 🎉" },
+                            onSuccess = {
+                                onRegisterSuccess()
+                                message = "Compte créé 🎉"
+                            },
                             onError = { message = it }
                         )
                     }
