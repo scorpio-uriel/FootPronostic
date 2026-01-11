@@ -27,37 +27,43 @@ import java.util.*
 fun MatchListScreen(matchViewModel: MatchViewModel = viewModel()) {
     // Observe l'état de la liste des matchs depuis le ViewModel.
     val matches by matchViewModel.matches.collectAsState()
-    // Variable d'état pour contrôler l'affichage du dialogue d'ajout.
+    // Observe l'état isAdmin depuis le ViewModel.
+    val isAdmin by matchViewModel.isAdmin.collectAsState()
+    
+    // État pour le dialogue d'ajout
     var showAddMatchDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
-            // Affiche le bouton d'action flottant uniquement si l'utilisateur est un admin.
-            if (matchViewModel.isAdmin) {
+            if (isAdmin) {
                 FloatingActionButton(onClick = { showAddMatchDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Ajouter un match")
+                    Icon(Icons.Default.Add, contentDescription = "Ajouter un match")
                 }
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(8.dp)
-        ) {
-            // Itère sur la liste des matchs et affiche une MatchCard pour chacun.
-            items(matches) { match ->
-                MatchCard(match = match, viewModel = matchViewModel)
+        if (matches.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("Aucun match disponible.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 8.dp)
+            ) {
+                items(matches) { match ->
+                    MatchCard(match = match, viewModel = matchViewModel, isAdmin = isAdmin)
+                }
             }
         }
 
-        // Affiche le dialogue si showAddMatchDialog est vrai.
         if (showAddMatchDialog) {
             AddMatchDialog(
                 onDismiss = { showAddMatchDialog = false },
-                onMatchAdd = {
-                    matchViewModel.addMatch(it)
+                onMatchAdd = { newMatch ->
+                    matchViewModel.addMatch(newMatch)
                     showAddMatchDialog = false
                 }
             )
@@ -65,11 +71,8 @@ fun MatchListScreen(matchViewModel: MatchViewModel = viewModel()) {
     }
 }
 
-/**
- * Affiche une carte (Card) pour un seul match.
- */
 @Composable
-fun MatchCard(match: SportMatch, viewModel: MatchViewModel) {
+fun MatchCard(match: SportMatch, viewModel: MatchViewModel, isAdmin: Boolean) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -78,73 +81,73 @@ fun MatchCard(match: SportMatch, viewModel: MatchViewModel) {
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "${match.teamA} vs ${match.teamB}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = formatDateTime(match.dateTime), fontSize = 14.sp, color = Color.Gray)
+                Text(
+                    text = "${match.teamA} vs ${match.teamB}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = formatDateTime(match.dateTime),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Score: ${match.scoreA} - ${match.scoreB}", fontSize = 16.sp)
-                Text(text = "Statut: ${match.status}", fontSize = 14.sp, color = if (match.status == "finished") Color.Red else Color.Green)
+                Text(
+                    text = "Score: ${match.scoreA} - ${match.scoreB}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = match.status.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (match.status == "finished") Color.Red else Color.Blue
+                )
             }
-            // Si l'utilisateur est admin, affiche le bouton de suppression.
-            if (viewModel.isAdmin) {
+            if (isAdmin) {
                 IconButton(onClick = { viewModel.deleteMatch(match.id) }) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Supprimer", tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Supprimer",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * Dialogue pour ajouter un nouveau match.
- */
 @Composable
-fun AddMatchDialog(
-    onDismiss: () -> Unit,
-    onMatchAdd: (SportMatch) -> Unit
-) {
+fun AddMatchDialog(onDismiss: () -> Unit, onMatchAdd: (SportMatch) -> Unit) {
     var teamA by remember { mutableStateOf("") }
     var teamB by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Ajouter un match") },
+        title = { Text("Nouveau Match") },
         text = {
             Column {
-                OutlinedTextField(value = teamA, onValueChange = { teamA = it }, label = { Text("Équipe A") })
+                TextField(value = teamA, onValueChange = { teamA = it }, label = { Text("Équipe A") })
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = teamB, onValueChange = { teamB = it }, label = { Text("Équipe B") })
+                TextField(value = teamB, onValueChange = { teamB = it }, label = { Text("Équipe B") })
             }
         },
         confirmButton = {
-            Button(onClick = {
-                val newMatch = SportMatch(
-                    teamA = teamA,
-                    teamB = teamB,
-                    dateTime = System.currentTimeMillis(), // Utilise l'heure actuelle
-                    status = "upcoming"
-                )
-                onMatchAdd(newMatch)
-            }) {
+            TextButton(
+                onClick = { if (teamA.isNotBlank() && teamB.isNotBlank()) onMatchAdd(SportMatch(teamA = teamA, teamB = teamB, dateTime = System.currentTimeMillis())) },
+                enabled = teamA.isNotBlank() && teamB.isNotBlank()
+            ) {
                 Text("Ajouter")
             }
         },
         dismissButton = {
-            Button(onClick = onDismiss) {
-                Text("Annuler")
-            }
+            TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     )
 }
 
-/**
- * Formate un timestamp en une chaîne de caractères lisible.
- */
 private fun formatDateTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
