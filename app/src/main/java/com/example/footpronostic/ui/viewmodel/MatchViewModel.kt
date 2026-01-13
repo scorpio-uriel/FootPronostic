@@ -3,69 +3,83 @@ package com.example.footpronostic.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footpronostic.data.model.SportMatch
-import com.example.footpronostic.data.repository.MatchRepository
+import com.example.footpronostic.data.model.FDMatch
+import com.example.footpronostic.data.model.toSportMatch
+import com.example.footpronostic.data.repository.FootballApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel pour l'écran de la liste des matchs.
- * Il gère l'état de l'UI et interagit avec le MatchRepository.
+ * ViewModel gérant l'affichage des matchs depuis l'API externe.
  */
 class MatchViewModel : ViewModel() {
+    private val apiRepository = FootballApiRepository()
 
-    private val repository = MatchRepository()
-
-    // Un StateFlow privé pour contenir l'état de la liste des matchs.
     private val _matches = MutableStateFlow<List<SportMatch>>(emptyList())
-    // Un StateFlow public et en lecture seule pour que l'UI observe les changements.
     val matches: StateFlow<List<SportMatch>> = _matches.asStateFlow()
 
-    // Variable pour simuler le rôle de l'utilisateur (admin ou non).
-    // Dans une vraie application, cette valeur proviendrait de votre logique d'authentification.
-    val isAdmin: Boolean = true // Mettez à false pour tester la vue non-admin
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
-        // Au démarrage du ViewModel, on lance une coroutine pour observer les matchs.
+        loadMatchesFromApi()
+    }
+
+    fun loadMatchesFromApi() {
         viewModelScope.launch {
-            repository.getMatches()
-                .catch { exception ->
-                    // Gérer les erreurs de récupération (ex: afficher un message)
-                    println("Error fetching matches: $exception")
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            try {
+                println("\n🔵 --- DÉBUT CHARGEMENT MATCHS ---")
+
+                // getTodayMatches() renvoie List<FDMatch>
+                val apiMatches = apiRepository.getTodayMatches()
+
+                println("📊 Nombre de matchs bruts reçus: ${apiMatches.size}")
+
+                // Log chaque match avant conversion
+                apiMatches.forEachIndexed { index, match ->
+                    println("  Match $index: ${match.homeTeam.name} vs ${match.awayTeam.name}")
+                    println("    - utcDate: ${match.utcDate}")
+                    println("    - status: ${match.status}")
                 }
-                .collect { matchList ->
-                    // Met à jour le StateFlow avec la nouvelle liste de matchs.
-                    _matches.value = matchList
+
+                // On convertit chaque FDMatch en SportMatch
+                val convertedMatches = apiMatches.map {
+                    val converted = it.toSportMatch()
+                    println("  ✅ Converti: ${converted.teamA} vs ${converted.teamB} @ ${converted.dateTime}")
+                    converted
                 }
+
+                _matches.value = convertedMatches
+
+                println("✅ ${_matches.value.size} matchs chargés avec succès")
+                println("🔵 --- FIN CHARGEMENT MATCHS ---\n")
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Erreur de connexion: ${e.message}"
+                println("❌ Erreur: ${e.message}")
+                e.printStackTrace()
+
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    /**
-     * Ajoute un nouveau match.
-     */
-    fun addMatch(match: SportMatch) {
-        viewModelScope.launch {
-            repository.addMatch(match)
-        }
+
+    fun refreshMatches() {
+        loadMatchesFromApi()
     }
 
-    /**
-     * Met à jour un match existant.
-     */
-    fun updateMatch(match: SportMatch) {
-        viewModelScope.launch {
-            repository.updateMatch(match)
-        }
-    }
-
-    /**
-     * Supprime un match.
-     */
-    fun deleteMatch(matchId: String) {
-        viewModelScope.launch {
-            repository.deleteMatch(matchId)
-        }
+    override fun onCleared() {
+        super.onCleared()
+        apiRepository.closeClient()
     }
 }
