@@ -6,14 +6,12 @@ import com.example.footpronostic.data.model.Pronostic
 import com.example.footpronostic.data.model.SportMatch
 import com.example.footpronostic.data.model.toPronostic
 import com.example.footpronostic.data.repository.PronosticRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * ViewModel gérant la logique métier des pronostics.
- */
 class PronosticViewModel(
     private val repository: PronosticRepository = PronosticRepository()
 ) : ViewModel() {
@@ -30,115 +28,97 @@ class PronosticViewModel(
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
 
+    private var collectionJob: Job? = null
+
     /**
-     * Charge les pronostics d'un utilisateur.
+     * Charge les pronostics d'un utilisateur et écoute les changements en temps réel.
+     * Annule toute collection précédente pour éviter les doublons.
      */
     fun loadUserPronostics(userId: String) {
-        viewModelScope.launch {
-            repository.getUserPronostics(userId).collect { pronosticsList ->
-                _pronostics.value = pronosticsList
+        if (userId.isBlank()) return
+        
+        // Annuler la collection précédente si elle existe
+        collectionJob?.cancel()
+        
+        collectionJob = viewModelScope.launch {
+            repository.getUserPronostics(userId).collect { list ->
+                _pronostics.value = list
             }
         }
     }
 
-    /**
-     * Vérifie si l'utilisateur peut parier sur un match.
-     */
     suspend fun canBetOnMatch(userId: String, matchId: String): Boolean {
         return !repository.hasUserBetOnMatch(userId, matchId)
     }
 
-    /**
-     * Crée un nouveau pronostic.
-     */
-    fun createPronostic(
-        match: SportMatch,
-        userId: String,
-        scoreA: Int,
-        scoreB: Int
-    ) {
+    fun createPronostic(match: SportMatch, userId: String, scoreA: Int, scoreB: Int) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-
             val pronostic = match.toPronostic(userId, scoreA, scoreB)
             val result = repository.addPronostic(pronostic)
-
+            
             result.onSuccess {
                 _successMessage.value = "Pronostic enregistré !"
-            }.onFailure { exception ->
-                _errorMessage.value = exception.message ?: "Erreur lors de l'ajout"
+            }.onFailure {
+                _errorMessage.value = it.message ?: "Erreur lors de l'ajout"
             }
-
             _isLoading.value = false
         }
     }
 
-    /**
-     * Met à jour un pronostic existant.
-     */
-    fun updatePronostic(
-        pronostic: Pronostic,
-        newScoreA: Int,
-        newScoreB: Int
-    ) {
+    fun updatePronostic(pronostic: Pronostic, newScoreA: Int, newScoreB: Int) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-
+            
             val winner = when {
                 newScoreA > newScoreB -> "teamA"
                 newScoreB > newScoreA -> "teamB"
                 else -> "draw"
             }
-
+            
             val updatedPronostic = pronostic.copy(
                 predictedScoreA = newScoreA,
                 predictedScoreB = newScoreB,
                 predictedWinner = winner
             )
-
+            
             val result = repository.updatePronostic(updatedPronostic)
-
             result.onSuccess {
                 _successMessage.value = "Pronostic modifié !"
-            }.onFailure { exception ->
-                _errorMessage.value = exception.message ?: "Erreur lors de la modification"
+            }.onFailure {
+                _errorMessage.value = it.message ?: "Erreur lors de la modification"
             }
-
             _isLoading.value = false
         }
     }
 
-    /**
-     * Supprime un pronostic.
-     */
-    fun deletePronostic(pronosticId: String) {
+    fun deletePronostic(id: String) {
         viewModelScope.launch {
-            // Mise à jour optimiste de l'UI : on retire l'élément immédiatement de la liste locale
+            // Mise à jour optimiste locale immédiate
             val currentList = _pronostics.value.toMutableList()
-            val itemToRemove = currentList.find { it.id == pronosticId }
+            val itemToRemove = currentList.find { it.id == id }
             if (itemToRemove != null) {
                 currentList.remove(itemToRemove)
                 _pronostics.value = currentList
             }
 
-            val result = repository.deletePronostic(pronosticId)
-
-            result.onSuccess {
-                _successMessage.value = "Pronostic supprimé"
-            }.onFailure { exception ->
-                // En cas d'échec, on peut réinsérer l'élément ou afficher une erreur
-                _errorMessage.value = exception.message ?: "Erreur lors de la suppression"
-                // Recharger la liste depuis la source de vérité (Firestore) si l'action échoue
-                // loadUserPronostics(itemToRemove?.userId ?: "")
+            val result = repository.deletePronostic(id)
+            result.onFailure {
+                _errorMessage.value = it.message ?: "Erreur lors de la suppression"
+                // En cas d'échec, la collection en temps réel (loadUserPronostics) 
+                // remettra la liste à jour correctement depuis Firestore.
             }
         }
     }
+    
+    fun validateMatch(match: SportMatch) {
+        viewModelScope.launch {
+            repository.validateMatchPronostics(match)
+        }
+    }
 
-    /**
-     * Réinitialise les messages.
-     */
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null

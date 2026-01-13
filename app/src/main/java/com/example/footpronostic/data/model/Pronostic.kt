@@ -5,45 +5,52 @@ import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
 /**
- * Représente un pronostic d'un utilisateur sur un match.
+ * Modèle de Pronostic complet pour le système de points avec cotes.
  */
 data class Pronostic(
     @DocumentId
     var id: String = "",
-
-    val userId: String = "",              // ID de l'utilisateur
-    val matchId: String = "",             // ID du match (de l'API)
-    val matchTeamA: String = "",          // Nom équipe A (pour affichage)
-    val matchTeamB: String = "",          // Nom équipe B (pour affichage)
-    val matchDateTime: Long = 0L,         // Timestamp du match
-
-    // Le pronostic de l'utilisateur
+    val userId: String = "",
+    val matchId: String = "",
+    val matchTeamA: String = "",
+    val matchTeamB: String = "",
+    val matchDateTime: Long = 0L,
+    
+    // Pronostic de l'utilisateur
     val predictedScoreA: Int = 0,
     val predictedScoreB: Int = 0,
-    val predictedWinner: String = "",     // "teamA", "teamB", ou "draw"
-
-    // Métadonnées
+    val predictedWinner: String = "", // "teamA", "teamB", "draw"
+    
+    // Cotes au moment du pari
+    val oddsAtBet: Double = 1.0,
+    
+    // Statut et points
+    val isValidated: Boolean = false,
+    val pointsGained: Int = 0,
+    
     @ServerTimestamp
     val createdAt: Date? = null,
-    val updatedAt: Long = System.currentTimeMillis(),
-
-    // Statut du pronostic
-    val isValidated: Boolean = false,     // Devient true après le match
-    val points: Int = 0                   // Points gagnés (0 si pas encore validé)
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 /**
- * Crée un pronostic à partir d'un match.
+ * Extension pour convertir un SportMatch en Pronostic initial.
  */
 fun SportMatch.toPronostic(
     userId: String,
-    predictedScoreA: Int,
-    predictedScoreB: Int
+    scoreA: Int,
+    scoreB: Int
 ): Pronostic {
     val winner = when {
-        predictedScoreA > predictedScoreB -> "teamA"
-        predictedScoreB > predictedScoreA -> "teamB"
+        scoreA > scoreB -> "teamA"
+        scoreB > scoreA -> "teamB"
         else -> "draw"
+    }
+    
+    val odds = when (winner) {
+        "teamA" -> this.oddsA
+        "teamB" -> this.oddsB
+        else -> this.oddsDraw
     }
 
     return Pronostic(
@@ -52,8 +59,9 @@ fun SportMatch.toPronostic(
         matchTeamA = this.teamA,
         matchTeamB = this.teamB,
         matchDateTime = this.dateTime,
-        predictedScoreA = predictedScoreA,
-        predictedScoreB = predictedScoreB,
-        predictedWinner = winner
+        predictedScoreA = scoreA,
+        predictedScoreB = scoreB,
+        predictedWinner = winner,
+        oddsAtBet = odds
     )
 }

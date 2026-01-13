@@ -1,6 +1,9 @@
 package com.example.footpronostic.data.repository
 
+import com.example.footpronostic.data.PointSystem
 import com.example.footpronostic.data.model.Pronostic
+import com.example.footpronostic.data.model.SportMatch
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.snapshots
 import com.google.firebase.firestore.ktx.toObjects
@@ -8,65 +11,75 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
-/**
- * Repository pour gérer les pronostics des utilisateurs avec Firestore.
- * Active la persistance pour le mode hors-ligne.
- */
 class PronosticRepository {
-
     private val db = FirebaseFirestore.getInstance()
     private val pronosticsCollection = db.collection("pronostics")
+    private val usersCollection = db.collection("users")
 
-    init {
-        // Active la persistance Firestore pour le mode offline
-        try {
-            db.firestoreSettings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
-                .setPersistenceEnabled(true)
-                .build()
+    /**
+     * Valide automatiquement les pronostics quand un match est terminé.
+     * Utilise le moteur de calcul centralisé PointSystem.
+     */
+    suspend fun validateMatchPronostics(match: SportMatch): Result<Unit> {
+        // Condition de sécurité : le match doit être terminé
+        if (match.status != "finished" && match.status != "FINISHED") {
+            return Result.failure(Exception("Le match n'est pas encore terminé (Status: ${match.status})"))
+        }
+        
+        return try {
+            // Récupérer les pronostics non validés pour ce match
+            val querySnapshot = pronosticsCollection
+                .whereEqualTo("matchId", match.id)
+                .whereEqualTo("isValidated", false)
+                .get()
+                .await()
+
+            if (querySnapshot.isEmpty) {
+                return Result.success(Unit) // Rien à valider
+            }
+
+            // Utilisation d'une transaction pour garantir l'atomicité
+            db.runTransaction { transaction ->
+                for (doc in querySnapshot.documents) {
+                    val pronostic = doc.toObject(Pronostic::class.java) ?: continue
+                    
+                    // UTILISATION DU MOTEUR CENTRALISÉ
+                    val points = PointSystem.calculatePoints(
+                        realA = match.scoreA, 
+                        realB = match.scoreB,
+                        predA = pronostic.predictedScoreA, 
+                        predB = pronostic.predictedScoreB,
+                        odds = pronostic.oddsAtBet
+                    )
+
+                    // 1. Mettre à jour le document Pronostic
+                    transaction.update(doc.reference, mapOf(
+                        "isValidated" to true,
+                        "pointsGained" to points
+                    ))
+
+                    // 2. Mettre à jour le total des points de l'utilisateur
+                    val userRef = usersCollection.document(pronostic.userId)
+                    transaction.update(userRef, "points", FieldValue.increment(points.toLong()))
+                }
+            }.await()
+            
+            Result.success(Unit)
         } catch (e: Exception) {
-            println("⚠️ Persistance déjà activée: ${e.message}")
+            Result.failure(e)
         }
     }
 
-    /**
-     * Récupère tous les pronostics d'un utilisateur en temps réel.
-     */
     fun getUserPronostics(userId: String): Flow<List<Pronostic>> {
         return pronosticsCollection
             .whereEqualTo("userId", userId)
             .orderBy("matchDateTime")
             .snapshots()
-            .map { snapshot ->
-                snapshot.toObjects<Pronostic>()
-            }
+            .map { it.toObjects<Pronostic>() }
     }
 
-    /**
-     * Vérifie si l'utilisateur a déjà parié sur un match.
-     */
-    suspend fun hasUserBetOnMatch(userId: String, matchId: String): Boolean {
-        return try {
-            val snapshot = pronosticsCollection
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("matchId", matchId)
-                .get()
-                .await()
-            !snapshot.isEmpty
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Ajoute un nouveau pronostic.
-     */
     suspend fun addPronostic(pronostic: Pronostic): Result<String> {
         return try {
-            // Vérifie que le match n'a pas commencé
-            if (System.currentTimeMillis() > pronostic.matchDateTime) {
-                return Result.failure(Exception("Le match a déjà commencé"))
-            }
-
             val docRef = pronosticsCollection.add(pronostic).await()
             Result.success(docRef.id)
         } catch (e: Exception) {
@@ -74,48 +87,30 @@ class PronosticRepository {
         }
     }
 
-    /**
-     * Met à jour un pronostic existant (seulement si le match n'a pas commencé).
-     */
     suspend fun updatePronostic(pronostic: Pronostic): Result<Unit> {
         return try {
-            // Vérifie que le match n'a pas commencé
-            if (System.currentTimeMillis() > pronostic.matchDateTime) {
-                return Result.failure(Exception("Impossible de modifier : le match a commencé"))
-            }
-
-            val updatedPronostic = pronostic.copy(
-                updatedAt = System.currentTimeMillis()
-            )
-
-            pronosticsCollection.document(pronostic.id).set(updatedPronostic).await()
+            pronosticsCollection.document(pronostic.id).set(pronostic).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Supprime un pronostic.
-     */
-    suspend fun deletePronostic(pronosticId: String): Result<Unit> {
+    suspend fun deletePronostic(id: String): Result<Unit> {
         return try {
-            pronosticsCollection.document(pronosticId).delete().await()
+            pronosticsCollection.document(id).delete().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Récupère un pronostic par son ID.
-     */
-    suspend fun getPronosticById(pronosticId: String): Pronostic? {
-        return try {
-            val document = pronosticsCollection.document(pronosticId).get().await()
-            document.toObject(Pronostic::class.java)
-        } catch (e: Exception) {
-            null
-        }
+    suspend fun hasUserBetOnMatch(userId: String, matchId: String): Boolean {
+        val snapshot = pronosticsCollection
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("matchId", matchId)
+            .get()
+            .await()
+        return !snapshot.isEmpty
     }
 }

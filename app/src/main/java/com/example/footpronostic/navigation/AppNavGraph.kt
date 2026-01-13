@@ -1,6 +1,7 @@
 package com.example.footpronostic.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -13,11 +14,17 @@ import com.example.footpronostic.ui.screens.MyPronosticsScreen
 import com.example.footpronostic.ui.screens.CreatePronosticScreen
 import com.example.footpronostic.ui.screens.EditPronosticScreen
 import com.example.footpronostic.ui.screens.ProfileScreen
+import com.example.footpronostic.ui.screens.LeaderboardScreen
+import com.example.footpronostic.ui.screens.AdminDashboardScreen
+import com.example.footpronostic.ui.viewmodel.PronosticViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun AppNavGraph(startDestination: String) {
     val navController = rememberNavController()
+    
+    // Instance unique partagée pour que tous les écrans voient les mêmes données en temps réel
+    val sharedPronosticViewModel: PronosticViewModel = viewModel()
 
     NavHost(
         navController = navController,
@@ -54,6 +61,7 @@ fun AppNavGraph(startDestination: String) {
         // MATCHS - Liste des matchs disponibles
         composable(Routes.MatchList.route) {
             MatchListScreen(
+                pronosticViewModel = sharedPronosticViewModel,
                 onNavigateToPronostics = {
                     navController.navigate(Routes.MyPronostics.route)
                 },
@@ -63,10 +71,25 @@ fun AppNavGraph(startDestination: String) {
                 onNavigateToProfile = {
                     navController.navigate(Routes.Profile.route)
                 },
+                onNavigateToLeaderboard = {
+                    navController.navigate(Routes.Leaderboard.route)
+                },
+                onNavigateToAdmin = {
+                    navController.navigate(Routes.AdminDashboard.route)
+                },
                 onLogout = {
                     navController.navigate(Routes.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        // DASHBOARD ADMIN
+        composable(Routes.AdminDashboard.route) {
+            AdminDashboardScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -85,12 +108,22 @@ fun AppNavGraph(startDestination: String) {
             )
         }
 
+        // CLASSEMENT
+        composable(Routes.Leaderboard.route) {
+            LeaderboardScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         // PRONOSTICS - Liste des pronostics de l'utilisateur
         composable(Routes.MyPronostics.route) {
             val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
             MyPronosticsScreen(
                 userId = userId,
+                pronosticViewModel = sharedPronosticViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -113,6 +146,7 @@ fun AppNavGraph(startDestination: String) {
             CreatePronosticScreen(
                 matchId = matchId,
                 userId = userId,
+                pronosticViewModel = sharedPronosticViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -132,6 +166,7 @@ fun AppNavGraph(startDestination: String) {
             EditPronosticScreen(
                 pronosticId = pronosticId,
                 userId = userId,
+                pronosticViewModel = sharedPronosticViewModel,
                 onNavigateBack = {
                     navController.popBackStack()
                 }

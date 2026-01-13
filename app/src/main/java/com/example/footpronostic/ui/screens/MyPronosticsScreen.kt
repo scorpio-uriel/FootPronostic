@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.footpronostic.R
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.Pronostic
 import com.example.footpronostic.ui.viewmodel.PronosticViewModel
@@ -28,7 +31,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Écran affichant tous les pronostics de l'utilisateur.
+ * Écran affichant tous les pronostics de l'utilisateur avec onglets.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +46,11 @@ fun MyPronosticsScreen(
     
     val db = FirebaseFirestore.getInstance()
     var userAvatar by remember { mutableStateOf(AvatarConfig()) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Charger l'avatar de l'utilisateur
+    // Charger l'avatar et les données
     LaunchedEffect(userId) {
         pronosticViewModel.loadUserPronostics(userId)
-        
         db.collection("users").document(userId).get().addOnSuccessListener { doc ->
             if (doc.exists()) {
                 val map = doc.get("avatar") as? Map<*, *>
@@ -64,6 +67,10 @@ fun MyPronosticsScreen(
         }
     }
 
+    // Filtrage des listes
+    val pendingPronos = pronostics.filter { !it.isValidated }
+    val historyPronos = pronostics.filter { it.isValidated }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,58 +79,62 @@ fun MyPronosticsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                }
             )
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when {
-                isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Barre d'onglets pour séparer En cours et Terminés
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("En cours (${pendingPronos.size})") },
+                    icon = { Icon(Icons.Default.PendingActions, null) }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Terminés (${historyPronos.size})") },
+                    icon = { Icon(Icons.Default.History, null) }
+                )
+            }
 
-                pronostics.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "📊 Aucun pronostic",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Vous n'avez pas encore de pronostics.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(pronostics) { pronostic ->
-                            PronosticCard(
-                                pronostic = pronostic,
-                                userAvatar = userAvatar,
-                                onEdit = { onEditPronostic(pronostic.id) },
-                                onDelete = { pronosticViewModel.deletePronostic(pronostic.id) }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    val currentList = if (selectedTab == 0) pendingPronos else historyPronos
+                    
+                    if (currentList.isEmpty()) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = if (selectedTab == 0) "🎯 Aucun pari en attente" else "📜 Historique vide",
+                                style = MaterialTheme.typography.titleLarge
                             )
+                            Text(
+                                text = if (selectedTab == 0) "Il est temps de parier !" else "Vos résultats s'afficheront ici.",
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(currentList) { pronostic ->
+                                PronosticCard(
+                                    pronostic = pronostic,
+                                    userAvatar = userAvatar,
+                                    onEdit = { onEditPronostic(pronostic.id) },
+                                    onDelete = { pronosticViewModel.deletePronostic(pronostic.id) }
+                                )
+                            }
                         }
                     }
                 }
@@ -139,32 +150,25 @@ fun PronosticCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    // Suppression de la condition temporelle pour permettre la modification/suppression à tout moment pour le test
-    // Vous pourrez la remettre plus tard : val canEdit = System.currentTimeMillis() < pronostic.matchDateTime
-    val canEdit = true 
+    // On ne peut modifier/supprimer que si le pronostic n'est pas validé
+    val canModify = !pronostic.isValidated
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (pronostic.isValidated)
-                MaterialTheme.colorScheme.tertiaryContainer
+                MaterialTheme.colorScheme.surfaceVariant
             else
                 MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Affichage de l'avatar à gauche
             Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.size(50.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 AvatarMediumPreview(userAvatar)
@@ -173,97 +177,34 @@ fun PronosticCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                // En-tête
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatDateTime(pronostic.matchDateTime),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.Gray
-                    )
-
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(formatDateTime(pronostic.matchDateTime), style = MaterialTheme.typography.labelMedium, color = Color.Gray)
                     if (pronostic.isValidated) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = "✓ ${pronostic.points} pts",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                            val sign = if (pronostic.pointsGained >= 0) "+" else ""
+                            Text("$sign${pronostic.pointsGained} pts", modifier = Modifier.padding(2.dp))
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "${pronostic.matchTeamA} vs ${pronostic.matchTeamB}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = "Votre prono : ${pronostic.predictedScoreA} - ${pronostic.predictedScoreB}", color = MaterialTheme.colorScheme.primary)
 
-                // Match
-                Text(
-                    text = "${pronostic.matchTeamA} vs ${pronostic.matchTeamB}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Pronostic
-                Text(
-                    text = "Votre prono : ${pronostic.predictedScoreA} - ${pronostic.predictedScoreB}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                // Actions
-                if (canEdit && !pronostic.isValidated) {
+                if (canModify) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = onEdit,
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = "Modifier",
-                                modifier = Modifier.size(16.dp)
-                            )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onEdit, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Modifier", style = MaterialTheme.typography.labelSmall)
                         }
-
-                        Button(
-                            onClick = onDelete,
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Supprimer",
-                                modifier = Modifier.size(16.dp)
-                            )
+                        Button(onClick = onDelete, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Supprimer", style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                } else if (!canEdit) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "⚠️ Match commencé",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
                 }
             }
         }

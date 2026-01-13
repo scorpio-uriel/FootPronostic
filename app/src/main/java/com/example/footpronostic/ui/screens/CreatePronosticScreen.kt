@@ -42,12 +42,12 @@ fun CreatePronosticScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Gestion des messages
+    // Gestion des messages : retour direct après succès
     LaunchedEffect(successMessage) {
         successMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            pronosticViewModel.clearMessages()
+            // On retourne à l'écran précédent immédiatement sans attendre la fin du snackbar
             onNavigateBack()
+            pronosticViewModel.clearMessages()
         }
     }
 

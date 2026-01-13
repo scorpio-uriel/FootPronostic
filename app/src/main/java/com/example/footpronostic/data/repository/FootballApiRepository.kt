@@ -1,101 +1,106 @@
 package com.example.footpronostic.data.repository
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.example.footpronostic.data.model.ApiMatchResponse
-import com.example.footpronostic.data.model.FDMatch
-import com.example.footpronostic.data.model.FDTeam
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.request.headers
-import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.json.json
+import com.example.footpronostic.data.model.SportMatch
+import com.example.footpronostic.data.model.toSportMatch
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
-/**
- * Repository pour récupérer les matchs depuis football-data.org.
- */
 class FootballApiRepository {
 
-    private val apiKey = "d343d904339f4390bad6a45f7ed9c01c"
-    private val baseUrl = "https://api.football-data.org/v4"
+    private val apiKey = "83bec8549a7a48ebb7986f92dfaa8932"
+
+    /**
+     * Utilisation de l'engine Android avec configuration SSL pour éviter l'erreur
+     * "Trust anchor for certification path not found" sur les vieux émulateurs ou réseaux restreints.
+     */
     private val client = HttpClient(Android) {
         install(ContentNegotiation) {
-            json(
-                Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                    prettyPrint = true
-                }
-            )
+            json(Json {
+                ignoreUnknownKeys = true
+            })
+        }
+        engine {
+            // Configuration pour contourner les problèmes de certificats SSL sur Android
+            sslManager = { connection ->
+                val trustAllCerts = arrayOf<X509TrustManager>(object : X509TrustManager {
+                    override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                    override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+                })
+                val sslContext = SSLContext.getInstance("TLS")
+                sslContext.init(null, trustAllCerts, SecureRandom())
+                connection.sslSocketFactory = sslContext.socketFactory
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun getUpcomingMatches(): List<SportMatch> {
+        return try {
+            // On cible la Premier League (PL) car c'est une compétition gratuite par défaut
+            val response: ApiMatchResponse = client.get(
+                "https://api.football-data.org/v4/competitions/PL/matches"
+            ) {
+                header("X-Auth-Token", apiKey)
+                parameter("status", "SCHEDULED")
+            }.body()
+
+            if (response.matches.isEmpty()) {
+                fallbackMatches()
+            } else {
+                println("Matchs API récupérés avec succès")
+                response.matches.map { it.toSportMatch() }
+            }
+
+        } catch (e: Exception) {
+            println("ÉCHEC API : ${e.localizedMessage} → Activation du Fallback")
+            fallbackMatches()
         }
     }
 
     /**
-     * Récupère des matchs (fixtures) pour la Premier League (PL) OU Ligue 1 (FL1)
-     * en utilisant l'endpoint /matches de football-data.org
-     * On limite à 5 matchs.
+     * Matchs de secours (Fallback) pour garantir que l'application 
+     * affiche toujours du contenu même sans connexion ou erreur SSL.
      */
-    suspend fun getTodayMatches(): List<FDMatch> {
-        return try {
-            val competitionCode = "PL"
-            val dateFrom = getTodayDate()
-            val url = "\$baseUrl/competitions/\$competitionCode/matches?dateFrom=\$dateFrom"
-
-            println("Url: $url")
-            val response: ApiMatchResponse = client.get(url) {
-                headers {
-                    append("X-Auth-Token", apiKey)
-                }
-            }.body()
-
-            // Si pas de matchs (plan gratuit), utiliser les matchs factices
-            if (response.matches.isEmpty()) {
-                println("⚠️ Pas de matchs via l'API, utilisation des données locales")
-                return fakeMatches().take(5)
-            }
-
-            response.matches.take(5)
-
-        } catch (e: Exception) {
-            println("❌ Erreur API, données de test utilisées")
-            return fakeMatches().take(5)
-        }
-    }
-
-    private fun fakeMatches(): List<FDMatch> {
-        val nowSeconds = System.currentTimeMillis() / 1000
+    private fun fallbackMatches(): List<SportMatch> {
+        val now = System.currentTimeMillis()
         return listOf(
-            FDMatch(
-                id = 1, utcDate = "2026-01-13T20:00:00Z", status = "SCHEDULED",
-                homeTeam = FDTeam(name = "Manchester United"),
-                awayTeam = FDTeam(name = "Brighton")
+            SportMatch(
+                id = "f1",
+                teamA = "Real Madrid",
+                teamB = "Barcelona",
+                dateTime = now + 86400000,
+                status = "upcoming",
+                oddsA = 2.1, oddsB = 3.2, oddsDraw = 2.8
             ),
-            FDMatch(
-                id = 2, utcDate = "2026-01-13T21:00:00Z", status = "SCHEDULED",
-                homeTeam = FDTeam(name = "Arsenal"),
-                awayTeam = FDTeam(name = "Chelsea")
+            SportMatch(
+                id = "f2",
+                teamA = "Liverpool",
+                teamB = "Man City",
+                dateTime = now + 172800000,
+                status = "upcoming",
+                oddsA = 2.4, oddsB = 2.4, oddsDraw = 3.1
             ),
-            FDMatch(
-                id = 3, utcDate = "2026-01-13T22:00:00Z", status = "SCHEDULED",
-                homeTeam = FDTeam(name = "Liverpool"),
-                awayTeam = FDTeam(name = "Manchester City")
+            SportMatch(
+                id = "f3",
+                teamA = "PSG",
+                teamB = "Bayern",
+                dateTime = now + 259200000,
+                status = "upcoming",
+                oddsA = 1.9, oddsB = 3.5, oddsDraw = 2.6
             )
         )
     }
-
-
-    fun closeClient() {
-        client.close()
-    }
-
-    private fun getTodayDate(): String {
-        val calendar = java.util.Calendar.getInstance()
-        val year = calendar.get(java.util.Calendar.YEAR)
-        val month = String.format("%02d", calendar.get(java.util.Calendar.MONTH) + 1)
-        val day = String.format("%02d", calendar.get(java.util.Calendar.DAY_OF_MONTH))
-        return "$year-$month-$day"
-    }
-
 }

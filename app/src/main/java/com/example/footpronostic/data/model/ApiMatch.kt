@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi
 import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.Random
 
 /**
  * Modèles pour l'API football-data.org (v4).
@@ -24,7 +25,8 @@ data class FDMatch(
     val matchday: Int? = null,
     val homeTeam: FDTeam,
     val awayTeam: FDTeam,
-    val score: FDScore = FDScore()
+    val score: FDScore = FDScore(),
+    val odds: FDOdds? = null
 )
 
 @Serializable
@@ -47,6 +49,13 @@ data class FDScoreDetail(
     val away: Int? = null
 )
 
+@Serializable
+data class FDOdds(
+    val homeWin: Double? = null,
+    val draw: Double? = null,
+    val awayWin: Double? = null
+)
+
 /**
  * Convertit un match football-data.org en SportMatch local.
  */
@@ -61,6 +70,8 @@ fun FDMatch.toSportMatch(): SportMatch {
         "FINISHED" -> "finished"
         else -> "upcoming"
     }
+    
+    val random = Random()
 
     return SportMatch(
         id = id.toString(),
@@ -69,7 +80,10 @@ fun FDMatch.toSportMatch(): SportMatch {
         dateTime = timestampMillis,
         status = normalizedStatus,
         scoreA = scoreHome,
-        scoreB = scoreAway
+        scoreB = scoreAway,
+        oddsA = odds?.homeWin ?: (1.5 + random.nextDouble() * 2.0),
+        oddsB = odds?.awayWin ?: (1.5 + random.nextDouble() * 2.0),
+        oddsDraw = odds?.draw ?: (2.5 + random.nextDouble() * 1.5)
     )
 }
 
@@ -81,7 +95,6 @@ fun parseUtcDateToMillis(utcDate: String): Long {
     return try {
         Instant.from(DateTimeFormatter.ISO_INSTANT.parse(utcDate)).toEpochMilli()
     } catch (e: Exception) {
-        println("❌ Erreur parsing date '$utcDate': ${e.message}")
         System.currentTimeMillis()
     }
 }
