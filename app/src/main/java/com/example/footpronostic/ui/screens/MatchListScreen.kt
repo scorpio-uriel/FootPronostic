@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -22,9 +24,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.footpronostic.R
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.SportMatch
 import com.example.footpronostic.ui.viewmodel.MatchViewModel
+import com.example.footpronostic.ui.viewmodel.PronosticViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -37,9 +41,12 @@ import java.util.*
 @Composable
 fun MatchListScreen(
     matchViewModel: MatchViewModel = viewModel(),
+    pronosticViewModel: PronosticViewModel = viewModel(),
     onNavigateToPronostics: () -> Unit,
     onNavigateToCreatePronostic: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToLeaderboard: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val matches by matchViewModel.matches.collectAsState()
@@ -50,12 +57,20 @@ fun MatchListScreen(
     val currentUser = FirebaseAuth.getInstance().currentUser
     val db = FirebaseFirestore.getInstance()
     var userAvatar by remember { mutableStateOf(AvatarConfig()) }
+    var userPoints by remember { mutableStateOf(0) }
+    var userRole by remember { mutableStateOf("USER") }
 
-    // Charger l'avatar de l'utilisateur connecté
+    // Liste des IDs des matchs déjà pariés
+    val myPronostics by pronosticViewModel.pronostics.collectAsState()
+    val betMatchIds = remember(myPronostics) { myPronostics.map { it.matchId }.toSet() }
+
     LaunchedEffect(currentUser?.uid) {
         currentUser?.uid?.let { uid ->
-            db.collection("users").document(uid).get().addOnSuccessListener { doc ->
-                if (doc.exists()) {
+            pronosticViewModel.loadUserPronostics(uid)
+            db.collection("users").document(uid).addSnapshotListener { doc, _ ->
+                if (doc != null && doc.exists()) {
+                    userPoints = doc.getLong("points")?.toInt() ?: 0
+                    userRole = doc.getString("role") ?: "USER"
                     val map = doc.get("avatar") as? Map<*, *>
                     if (map != null) {
                         userAvatar = AvatarConfig(
@@ -75,26 +90,40 @@ fun MatchListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Matchs du jour",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                actions = {
-                    // Bouton Actualiser
-                    IconButton(onClick = { matchViewModel.refreshMatches() }) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Actualiser",
-                            tint = MaterialTheme.colorScheme.primary
+                    Column {
+                        Text(
+                            "FootPronostic",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "$userPoints pts",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
+                },
+                actions = {
+                    // Bouton Admin Dashboard (Visible uniquement pour les ADMIN)
+                    if (userRole == "ADMIN") {
+                        IconButton(onClick = onNavigateToAdmin) {
+                            Icon(
+                                Icons.Default.AdminPanelSettings,
+                                contentDescription = "Admin",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
 
-                    // Avatar de l'utilisateur cliquable vers Mes Pronostics
+                    IconButton(onClick = onNavigateToLeaderboard) {
+                        Icon(Icons.Default.Leaderboard, "Classement", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { matchViewModel.refreshMatches() }) {
+                        Icon(Icons.Default.Refresh, "Actualiser", tint = MaterialTheme.colorScheme.primary)
+                    }
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 8.dp)
+                            .padding(horizontal = 4.dp)
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -103,84 +132,21 @@ fun MatchListScreen(
                     ) {
                         AvatarSmallPreview(userAvatar)
                     }
-
-                    // Menu avec déconnexion et profil
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                         }
-
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            // Email de l'utilisateur
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(
-                                            text = "Connecté en tant que :",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.Gray
-                                        )
-                                        Text(
-                                            text = currentUser?.email ?: "Utilisateur",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                },
-                                onClick = { }
+                                text = { Text("Mon Profil") },
+                                leadingIcon = { Icon(Icons.Default.Person, null) },
+                                onClick = { showMenu = false; onNavigateToProfile() }
                             )
-
                             HorizontalDivider()
-
-                            // Bouton Profil
                             DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Mon Profil")
-                                    }
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    onNavigateToProfile()
-                                }
-                            )
-
-                            // Bouton Déconnexion
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ExitToApp,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            "Déconnexion",
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    FirebaseAuth.getInstance().signOut()
-                                    onLogout()
-                                }
+                                text = { Text("Déconnexion", color = Color.Red) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = Color.Red) },
+                                onClick = { showMenu = false; FirebaseAuth.getInstance().signOut(); onLogout() }
                             )
                         }
                     }
@@ -192,75 +158,22 @@ fun MatchListScreen(
             )
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when {
-                isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                errorMessage != null -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "❌ Erreur",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(matches) { match ->
+                        val hasBet = betMatchIds.contains(match.id)
+                        MatchCard(
+                            match = match, 
+                            hasBet = hasBet,
+                            onBetClick = { onNavigateToCreatePronostic(match.id) }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = errorMessage ?: "Erreur inconnue",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { matchViewModel.refreshMatches() }) {
-                            Text("Réessayer")
-                        }
-                    }
-                }
-
-                matches.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "⚽ Aucun match",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Aucun match disponible 😭",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(matches) { match ->
-                            MatchCard(
-                                match = match,
-                                onBetClick = { onNavigateToCreatePronostic(match.id) }
-                            )
-                        }
                     }
                 }
             }
@@ -280,112 +193,42 @@ fun AvatarSmallPreview(avatar: AvatarConfig) {
 }
 
 @Composable
-fun MatchCard(
-    match: SportMatch,
-    onBetClick: () -> Unit
-) {
+fun MatchCard(match: SportMatch, hasBet: Boolean, onBetClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (hasBet) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // En-tête avec date/heure
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = formatDateTime(match.dateTime),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.Gray
-                )
-
-                Surface(
-                    color = if (match.status == "finished")
-                        MaterialTheme.colorScheme.errorContainer
-                    else
-                        MaterialTheme.colorScheme.primaryContainer,
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = if (match.status == "finished") "TERMINÉ" else "À VENIR",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(formatDateTime(match.dateTime), style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                if (hasBet) {
+                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                        Text("DÉJÀ PARIÉ", modifier = Modifier.padding(2.dp))
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Match
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = match.teamA,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Text(
-                    text = "VS",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                Text(
-                    text = match.teamB,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(match.teamA, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("VS", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp))
+                Text(match.teamB, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             }
-
-            // Score si le match est terminé
             if (match.status == "finished") {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Score final : ${match.scoreA} - ${match.scoreB}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Bouton parier (uniquement si le match n'a pas commencé)
-            if (match.status != "finished" && System.currentTimeMillis() < match.dateTime) {
-                Button(
-                    onClick = onBetClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("🎯 Parier sur ce match")
+                Text("Score : ${match.scoreA} - ${match.scoreB}", color = MaterialTheme.colorScheme.primary)
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+                if (hasBet) {
+                    OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth(), enabled = false) {
+                        Text("Pari enregistré")
+                    }
+                } else {
+                    Button(onClick = onBetClick, modifier = Modifier.fillMaxWidth()) {
+                        Text("Parier")
+                    }
                 }
-            } else if (System.currentTimeMillis() >= match.dateTime && match.status != "finished") {
-                Text(
-                    text = "⚠️ Match en cours",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
