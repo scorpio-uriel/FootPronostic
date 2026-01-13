@@ -1,67 +1,87 @@
 package com.example.footpronostic.data.model
 
-import kotlinx.serialization.SerialName
+import android.os.Build
+import androidx.annotation.RequiresApi
 import kotlinx.serialization.Serializable
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 /**
- * Modèle pour les matchs provenant de l'API externe (API-Football).
+ * Modèles pour l'API football-data.org (v4).
+ * Structure complète et correcte pour football-data.org
  */
+
 @Serializable
 data class ApiMatchResponse(
-    val response: List<ApiFixture>
+    val matches: List<FDMatch> = emptyList()
 )
 
 @Serializable
-data class ApiFixture(
-    val fixture: FixtureDetails,
-    val teams: TeamsInfo,
-    val goals: GoalsInfo? = null
-)
-
-@Serializable
-data class FixtureDetails(
+data class FDMatch(
     val id: Int,
-    val date: String,  // Format ISO: "2026-01-11T20:00:00+00:00"
-    val timestamp: Long,
-    val status: FixtureStatus
+    val utcDate: String,          // ex: "2026-01-12T20:00:00Z"
+    val status: String,           // "SCHEDULED", "FINISHED", "LIVE", etc.
+    val matchday: Int? = null,
+    val homeTeam: FDTeam,
+    val awayTeam: FDTeam,
+    val score: FDScore = FDScore()
 )
 
 @Serializable
-data class FixtureStatus(
-    @SerialName("short") val short: String,  // "NS" = Not Started, "FT" = Finished
-    @SerialName("long") val long: String
+data class FDTeam(
+    val id: Int? = null,
+    val name: String? = null,
+    val shortName: String? = null,
+    val tla: String? = null       // code 3 lettres, ex: "PSG"
 )
 
 @Serializable
-data class TeamsInfo(
-    val home: Team,
-    val away: Team
+data class FDScore(
+    val fullTime: FDScoreDetail = FDScoreDetail(),
+    val halfTime: FDScoreDetail = FDScoreDetail()
 )
 
 @Serializable
-data class Team(
-    val id: Int,
-    val name: String,
-    val logo: String
-)
-
-@Serializable
-data class GoalsInfo(
+data class FDScoreDetail(
     val home: Int? = null,
     val away: Int? = null
 )
 
 /**
- * Convertit un match API en SportMatch local.
+ * Convertit un match football-data.org en SportMatch local.
  */
-fun ApiFixture.toSportMatch(): SportMatch {
+@RequiresApi(Build.VERSION_CODES.O)
+fun FDMatch.toSportMatch(): SportMatch {
+    val timestampMillis = parseUtcDateToMillis(utcDate)
+
+    val scoreHome = score.fullTime.home ?: 0
+    val scoreAway = score.fullTime.away ?: 0
+
+    val normalizedStatus = when (status) {
+        "FINISHED" -> "finished"
+        else -> "upcoming"
+    }
+
     return SportMatch(
-        id = fixture.id.toString(),
-        teamA = teams.home.name,
-        teamB = teams.away.name,
-        dateTime = fixture.timestamp * 1000,  // Converti en millisecondes
-        status = if (fixture.status.short == "FT") "finished" else "upcoming",
-        scoreA = goals?.home ?: 0,
-        scoreB = goals?.away ?: 0
+        id = id.toString(),
+        teamA = homeTeam.name ?: homeTeam.tla ?: "Home",
+        teamB = awayTeam.name ?: awayTeam.tla ?: "Away",
+        dateTime = timestampMillis,
+        status = normalizedStatus,
+        scoreA = scoreHome,
+        scoreB = scoreAway
     )
+}
+
+/**
+ * Parse une date ISO 8601 UTC (ex: "2026-01-13T15:00:00Z") en millisecondes.
+ */
+@RequiresApi(Build.VERSION_CODES.O)
+fun parseUtcDateToMillis(utcDate: String): Long {
+    return try {
+        Instant.from(DateTimeFormatter.ISO_INSTANT.parse(utcDate)).toEpochMilli()
+    } catch (e: Exception) {
+        println("❌ Erreur parsing date '$utcDate': ${e.message}")
+        System.currentTimeMillis()
+    }
 }

@@ -3,6 +3,7 @@ package com.example.footpronostic.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.footpronostic.data.model.SportMatch
+import com.example.footpronostic.data.model.FDMatch
 import com.example.footpronostic.data.model.toSportMatch
 import com.example.footpronostic.data.repository.FootballApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,15 +36,43 @@ class MatchViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
+                println("\n🔵 --- DÉBUT CHARGEMENT MATCHS ---")
+
+                // getTodayMatches() renvoie List<FDMatch>
                 val apiMatches = apiRepository.getTodayMatches()
-                _matches.value = apiMatches.map { it.toSportMatch() }
+
+                println("📊 Nombre de matchs bruts reçus: ${apiMatches.size}")
+
+                // Log chaque match avant conversion
+                apiMatches.forEachIndexed { index, match ->
+                    println("  Match $index: ${match.homeTeam.name} vs ${match.awayTeam.name}")
+                    println("    - utcDate: ${match.utcDate}")
+                    println("    - status: ${match.status}")
+                }
+
+                // On convertit chaque FDMatch en SportMatch
+                val convertedMatches = apiMatches.map {
+                    val converted = it.toSportMatch()
+                    println("  ✅ Converti: ${converted.teamA} vs ${converted.teamB} @ ${converted.dateTime}")
+                    converted
+                }
+
+                _matches.value = convertedMatches
+
+                println("✅ ${_matches.value.size} matchs chargés avec succès")
+                println("🔵 --- FIN CHARGEMENT MATCHS ---\n")
+
             } catch (e: Exception) {
                 _errorMessage.value = "Erreur de connexion: ${e.message}"
+                println("❌ Erreur: ${e.message}")
+                e.printStackTrace()
+
             } finally {
                 _isLoading.value = false
             }
         }
     }
+
 
     fun refreshMatches() {
         loadMatchesFromApi()

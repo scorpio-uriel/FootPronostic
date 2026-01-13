@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Écran principal : liste des matchs disponibles pour parier.
+ * Écran principal : liste des matchs disponibles pour faire les pronostics
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,7 +187,7 @@ fun MatchListScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Aucun match disponible entre 16h et minuit.",
+                            text = "Aucun match disponible 😭",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
