@@ -6,6 +6,7 @@ sealed class Routes(val route: String) {
 
     object MatchList : Routes("match_list")
     object MyPronostics : Routes("my_pronostics")
+    object Profile : Routes("profile")
 
     // Route avec paramètre pour créer un pronostic
     object CreatePronostic : Routes("create_pronostic/{matchId}") {
