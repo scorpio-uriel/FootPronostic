@@ -12,6 +12,7 @@ import com.example.footpronostic.ui.screens.MatchListScreen
 import com.example.footpronostic.ui.screens.MyPronosticsScreen
 import com.example.footpronostic.ui.screens.CreatePronosticScreen
 import com.example.footpronostic.ui.screens.EditPronosticScreen
+import com.example.footpronostic.ui.screens.ProfileScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -58,6 +59,23 @@ fun AppNavGraph(startDestination: String) {
                 },
                 onNavigateToCreatePronostic = { matchId ->
                     navController.navigate(Routes.CreatePronostic.createRoute(matchId))
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Routes.Profile.route)
+                },
+                onLogout = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // PROFIL - Gestion du profil utilisateur
+        composable(Routes.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 },
                 onLogout = {
                     navController.navigate(Routes.Login.route) {
@@ -119,7 +137,5 @@ fun AppNavGraph(startDestination: String) {
                 }
             )
         }
-
-
     }
 }

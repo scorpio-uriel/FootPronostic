@@ -115,17 +115,24 @@ class PronosticViewModel(
      */
     fun deletePronostic(pronosticId: String) {
         viewModelScope.launch {
-            _isLoading.value = true
+            // Mise à jour optimiste de l'UI : on retire l'élément immédiatement de la liste locale
+            val currentList = _pronostics.value.toMutableList()
+            val itemToRemove = currentList.find { it.id == pronosticId }
+            if (itemToRemove != null) {
+                currentList.remove(itemToRemove)
+                _pronostics.value = currentList
+            }
 
             val result = repository.deletePronostic(pronosticId)
 
             result.onSuccess {
                 _successMessage.value = "Pronostic supprimé"
             }.onFailure { exception ->
+                // En cas d'échec, on peut réinsérer l'élément ou afficher une erreur
                 _errorMessage.value = exception.message ?: "Erreur lors de la suppression"
+                // Recharger la liste depuis la source de vérité (Firestore) si l'action échoue
+                // loadUserPronostics(itemToRemove?.userId ?: "")
             }
-
-            _isLoading.value = false
         }
     }
 
