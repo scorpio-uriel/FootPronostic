@@ -10,8 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.footpronostic.ui.theme.PitchGreen
 import com.example.footpronostic.ui.viewmodel.PronosticViewModel
 import kotlinx.coroutines.launch
 
@@ -133,16 +135,19 @@ fun EditPronosticScreen(
                                 text = pronostic.matchTeamA,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
                                 text = "VS",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = PitchGreen
                             )
                             Text(
                                 text = pronostic.matchTeamB,
                                 style = MaterialTheme.typography.titleLarge,
+                                textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f)
                             )

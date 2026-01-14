@@ -1,6 +1,5 @@
 package com.example.footpronostic.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,11 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Leaderboard
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -20,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,6 +28,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.SportMatch
+import com.example.footpronostic.ui.theme.DeepStadium
+import com.example.footpronostic.ui.theme.PitchGreen
+import com.example.footpronostic.ui.theme.StadiumGrey
 import com.example.footpronostic.ui.viewmodel.MatchViewModel
 import com.example.footpronostic.ui.viewmodel.PronosticViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -230,60 +233,107 @@ fun AvatarSmallPreview(avatar: AvatarConfig) {
 @Composable
 fun MatchCard(match: SportMatch, hasBet: Boolean, onBetClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (hasBet) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
-        )
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    formatDateTime(match.dateTime),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.Gray
+        Box(
+            modifier = Modifier
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.08f),
+                            Color.Transparent
+                        )
+                    )
                 )
-                if (hasBet) {
-                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                        Text("DÉJÀ PARIÉ", modifier = Modifier.padding(2.dp))
+                .padding(20.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatDateTime(match.dateTime),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = StadiumGrey
+                    )
+                    if (hasBet) {
+                        Surface(
+                            color = PitchGreen.copy(alpha = 0.2f),
+                            shape = CircleShape
+                        ) {
+                            Text(
+                                "DÉJÀ PARIÉ",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PitchGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(match.teamA, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                Text(
-                    "VS",
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                Text(match.teamB, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            }
-            if (match.status == "finished") {
-                Text(
-                    "Score : ${match.scoreA} - ${match.scoreB}",
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                Spacer(modifier = Modifier.height(12.dp))
-                if (hasBet) {
-                    OutlinedButton(
-                        onClick = { },
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Section Équipes avec VS parfaitement centré
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = match.teamA,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Text(
+                        text = "VS",
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = PitchGreen
+                    )
+
+                    Text(
+                        text = match.teamB,
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (match.status != "finished") {
+                    Button(
+                        onClick = onBetClick,
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = false
+                        enabled = !hasBet,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (hasBet) StadiumGrey.copy(alpha = 0.2f) else PitchGreen,
+                            contentColor = DeepStadium
+                        )
                     ) {
-                        Text("Pari enregistré")
+                        Text(if (hasBet) "Pari enregistré" else "PARIER", fontWeight = FontWeight.ExtraBold)
                     }
                 } else {
-                    Button(onClick = onBetClick, modifier = Modifier.fillMaxWidth()) {
-                        Text("Parier")
-                    }
+                    Text(
+                        "Score final : ${match.scoreA} - ${match.scoreB}",
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = PitchGreen
+                    )
                 }
             }
         }
