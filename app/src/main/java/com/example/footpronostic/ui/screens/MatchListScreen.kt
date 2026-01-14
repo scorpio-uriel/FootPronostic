@@ -1,6 +1,7 @@
 package com.example.footpronostic.ui.screens
 
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.footpronostic.R
@@ -104,7 +106,7 @@ fun MatchListScreen(
                     }
                 },
                 actions = {
-                    // Bouton Admin Dashboard (Visible uniquement pour les ADMIN)
+                    // 1. Bouton Admin (Visible uniquement pour les ADMIN)
                     if (userRole == "ADMIN") {
                         IconButton(onClick = onNavigateToAdmin) {
                             Icon(
@@ -115,38 +117,75 @@ fun MatchListScreen(
                         }
                     }
 
+                    // 2. Bouton Classement
                     IconButton(onClick = onNavigateToLeaderboard) {
-                        Icon(Icons.Default.Leaderboard, "Classement", tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.Leaderboard,
+                            "Classement",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
+
+                    // 3. Bouton Actualiser
                     IconButton(onClick = { matchViewModel.refreshMatches() }) {
-                        Icon(Icons.Default.Refresh, "Actualiser", tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.Refresh,
+                            "Actualiser",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { onNavigateToPronostics() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AvatarSmallPreview(userAvatar)
+
+                    // 4. Nouveau bouton direct pour Mes Pronostics
+                    IconButton(onClick = onNavigateToPronostics) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ListAlt,
+                            contentDescription = "Mes Pronostics",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
+
+                    // 5. L'Avatar qui remplace le menu "Trois points"
                     Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 8.dp, start = 4.dp)
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { showMenu = true }, // Ouvre le menu au clic
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AvatarSmallPreview(userAvatar)
                         }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+
+                        // Menu déroulant attaché à l'avatar
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
                             DropdownMenuItem(
                                 text = { Text("Mon Profil") },
                                 leadingIcon = { Icon(Icons.Default.Person, null) },
-                                onClick = { showMenu = false; onNavigateToProfile() }
+                                onClick = {
+                                    showMenu = false
+                                    onNavigateToProfile()
+                                }
                             )
                             HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Déconnexion", color = Color.Red) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = Color.Red) },
-                                onClick = { showMenu = false; FirebaseAuth.getInstance().signOut(); onLogout() }
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ExitToApp,
+                                        null,
+                                        tint = Color.Red
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    onLogout()
+                                }
                             )
                         }
                     }
@@ -158,7 +197,9 @@ fun MatchListScreen(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
@@ -170,7 +211,7 @@ fun MatchListScreen(
                     items(matches) { match ->
                         val hasBet = betMatchIds.contains(match.id)
                         MatchCard(
-                            match = match, 
+                            match = match,
                             hasBet = hasBet,
                             onBetClick = { onNavigateToCreatePronostic(match.id) }
                         )
@@ -184,11 +225,31 @@ fun MatchListScreen(
 @Composable
 fun AvatarSmallPreview(avatar: AvatarConfig) {
     Box(modifier = Modifier.fillMaxSize()) {
-        Image(painterResource(AvatarUtils.getSkinRes(avatar.skin)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getHairRes(avatar.hair)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getEyesRes(avatar.eyes)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getMouthRes(avatar.mouth)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getOutfitRes(avatar.outfit)), null, modifier = Modifier.fillMaxSize())
+        Image(
+            painterResource(AvatarUtils.getSkinRes(avatar.skin)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getHairRes(avatar.hair)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getEyesRes(avatar.eyes)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getMouthRes(avatar.mouth)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getOutfitRes(avatar.outfit)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -202,8 +263,15 @@ fun MatchCard(match: SportMatch, hasBet: Boolean, onBetClick: () -> Unit) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatDateTime(match.dateTime), style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    formatDateTime(match.dateTime),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.Gray
+                )
                 if (hasBet) {
                     Badge(containerColor = MaterialTheme.colorScheme.primary) {
                         Text("DÉJÀ PARIÉ", modifier = Modifier.padding(2.dp))
@@ -211,17 +279,31 @@ fun MatchCard(match: SportMatch, hasBet: Boolean, onBetClick: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(match.teamA, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("VS", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp))
-                Text(match.teamB, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(match.teamA, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Text(
+                    "VS",
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Text(match.teamB, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             }
             if (match.status == "finished") {
-                Text("Score : ${match.scoreA} - ${match.scoreB}", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Score : ${match.scoreA} - ${match.scoreB}",
+                    color = MaterialTheme.colorScheme.primary
+                )
             } else {
                 Spacer(modifier = Modifier.height(12.dp))
                 if (hasBet) {
-                    OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth(), enabled = false) {
+                    OutlinedButton(
+                        onClick = { },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false
+                    ) {
                         Text("Pari enregistré")
                     }
                 } else {

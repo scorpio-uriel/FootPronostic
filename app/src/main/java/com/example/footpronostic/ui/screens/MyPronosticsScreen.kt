@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
@@ -22,7 +22,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.footpronostic.R
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.Pronostic
 import com.example.footpronostic.ui.viewmodel.PronosticViewModel
@@ -41,9 +40,11 @@ fun MyPronosticsScreen(
     onEditPronostic: (String) -> Unit,
     pronosticViewModel: PronosticViewModel = viewModel()
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var pronosticToDelete by remember { mutableStateOf<Pronostic?>(null) }
     val pronostics by pronosticViewModel.pronostics.collectAsState()
     val isLoading by pronosticViewModel.isLoading.collectAsState()
-    
+
     val db = FirebaseFirestore.getInstance()
     var userAvatar by remember { mutableStateOf(AvatarConfig()) }
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -71,19 +72,52 @@ fun MyPronosticsScreen(
     val pendingPronos = pronostics.filter { !it.isValidated }
     val historyPronos = pronostics.filter { it.isValidated }
 
+    // Dialogue de confirmation de suppression
+    if (showDeleteConfirm && pronosticToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirm = false
+                pronosticToDelete = null
+            },
+            title = { Text("Confirmer la suppression") },
+            text = { Text("Êtes-vous sûr de vouloir supprimer ce pronostic ? Cette action est irréversible.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pronosticToDelete?.let { pronosticViewModel.deletePronostic(it.id) }
+                        showDeleteConfirm = false
+                        pronosticToDelete = null
+                    }
+                ) {
+                    Text("Supprimer", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    pronosticToDelete = null
+                }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Mes pronostics") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)) {
             // Barre d'onglets pour séparer En cours et Terminés
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(
@@ -105,10 +139,12 @@ fun MyPronosticsScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
                     val currentList = if (selectedTab == 0) pendingPronos else historyPronos
-                    
+
                     if (currentList.isEmpty()) {
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -132,7 +168,10 @@ fun MyPronosticsScreen(
                                     pronostic = pronostic,
                                     userAvatar = userAvatar,
                                     onEdit = { onEditPronostic(pronostic.id) },
-                                    onDelete = { pronosticViewModel.deletePronostic(pronostic.id) }
+                                    onDelete = {
+                                        pronosticToDelete = pronostic
+                                        showDeleteConfirm = true
+                                    }
                                 )
                             }
                         }
@@ -164,11 +203,16 @@ fun PronosticCard(
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(50.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 AvatarMediumPreview(userAvatar)
@@ -177,29 +221,58 @@ fun PronosticCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(formatDateTime(pronostic.matchDateTime), style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        formatDateTime(pronostic.matchDateTime),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.Gray
+                    )
                     if (pronostic.isValidated) {
                         Badge(containerColor = MaterialTheme.colorScheme.primary) {
                             val sign = if (pronostic.pointsGained >= 0) "+" else ""
-                            Text("$sign${pronostic.pointsGained} pts", modifier = Modifier.padding(2.dp))
+                            Text(
+                                "$sign${pronostic.pointsGained} pts",
+                                modifier = Modifier.padding(2.dp)
+                            )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "${pronostic.matchTeamA} vs ${pronostic.matchTeamB}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(text = "Votre prono : ${pronostic.predictedScoreA} - ${pronostic.predictedScoreB}", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "${pronostic.matchTeamA} vs ${pronostic.matchTeamB}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Votre prono : ${pronostic.predictedScoreA} - ${pronostic.predictedScoreB}",
+                    color = MaterialTheme.colorScheme.primary
+                )
 
                 if (canModify) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onEdit, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onEdit,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
                             Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Modifier", style = MaterialTheme.typography.labelSmall)
                         }
-                        Button(onClick = onDelete, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                        Button(
+                            onClick = onDelete,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
                             Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Supprimer", style = MaterialTheme.typography.labelSmall)
@@ -214,11 +287,31 @@ fun PronosticCard(
 @Composable
 fun AvatarMediumPreview(avatar: AvatarConfig) {
     Box(modifier = Modifier.fillMaxSize()) {
-        Image(painterResource(AvatarUtils.getSkinRes(avatar.skin)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getHairRes(avatar.hair)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getEyesRes(avatar.eyes)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getMouthRes(avatar.mouth)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getOutfitRes(avatar.outfit)), null, modifier = Modifier.fillMaxSize())
+        Image(
+            painterResource(AvatarUtils.getSkinRes(avatar.skin)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getHairRes(avatar.hair)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getEyesRes(avatar.eyes)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getMouthRes(avatar.mouth)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
+        Image(
+            painterResource(AvatarUtils.getOutfitRes(avatar.outfit)),
+            null,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
