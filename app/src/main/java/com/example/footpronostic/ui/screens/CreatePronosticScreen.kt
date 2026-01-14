@@ -46,7 +46,6 @@ fun CreatePronosticScreen(
     // Gestion des messages : retour direct après succès
     LaunchedEffect(successMessage) {
         successMessage?.let {
-            // On retourne à l'écran précédent immédiatement sans attendre la fin du snackbar
             onNavigateBack()
             pronosticViewModel.clearMessages()
         }
@@ -153,7 +152,9 @@ fun CreatePronosticScreen(
                 ) {
                     OutlinedTextField(
                         value = scoreA,
-                        onValueChange = { if (it.length <= 2) scoreA = it.filter { c -> c.isDigit() } },
+                        onValueChange = {
+                            if (it.length <= 2) scoreA = it.filter { c -> c.isDigit() }
+                        },
                         label = { Text(match.teamA) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -168,7 +169,9 @@ fun CreatePronosticScreen(
 
                     OutlinedTextField(
                         value = scoreB,
-                        onValueChange = { if (it.length <= 2) scoreB = it.filter { c -> c.isDigit() } },
+                        onValueChange = {
+                            if (it.length <= 2) scoreB = it.filter { c -> c.isDigit() }
+                        },
                         label = { Text(match.teamB) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,

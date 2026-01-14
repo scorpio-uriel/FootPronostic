@@ -23,7 +23,6 @@ class FootballApiRepository {
 
     /**
      * Utilisation de l'engine Android avec configuration SSL pour éviter l'erreur
-     * "Trust anchor for certification path not found" sur les vieux émulateurs ou réseaux restreints.
      */
     private val client = HttpClient(Android) {
         install(ContentNegotiation) {
@@ -32,11 +31,20 @@ class FootballApiRepository {
             })
         }
         engine {
-            // Configuration pour contourner les problèmes de certificats SSL sur Android
             sslManager = { connection ->
                 val trustAllCerts = arrayOf<X509TrustManager>(object : X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-                    override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                    override fun checkClientTrusted(
+                        chain: Array<X509Certificate>,
+                        authType: String
+                    ) {
+                    }
+
+                    override fun checkServerTrusted(
+                        chain: Array<X509Certificate>,
+                        authType: String
+                    ) {
+                    }
+
                     override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
                 })
                 val sslContext = SSLContext.getInstance("TLS")
@@ -49,7 +57,6 @@ class FootballApiRepository {
     @RequiresApi(Build.VERSION_CODES.O)
     suspend fun getUpcomingMatches(): List<SportMatch> {
         return try {
-            // On cible la Premier League (PL) car c'est une compétition gratuite par défaut
             val response: ApiMatchResponse = client.get(
                 "https://api.football-data.org/v4/competitions/PL/matches"
             ) {
@@ -71,7 +78,7 @@ class FootballApiRepository {
     }
 
     /**
-     * Matchs de secours (Fallback) pour garantir que l'application 
+     * Matchs de secours (Fallback) pour garantir que l'application
      * affiche toujours du contenu même sans connexion ou erreur SSL.
      */
     private fun fallbackMatches(): List<SportMatch> {

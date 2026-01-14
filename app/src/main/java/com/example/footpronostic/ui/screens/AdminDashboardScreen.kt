@@ -64,12 +64,16 @@ fun AdminDashboardScreen(
         }
     ) { padding ->
         if (isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(Modifier
+                .fillMaxSize()
+                .padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -79,8 +83,9 @@ fun AdminDashboardScreen(
                         onUpdatePoints = { amount ->
                             db.collection("users").document(user.uid)
                                 .update("points", FieldValue.increment(amount.toLong()))
-                                .addOnSuccessListener { 
-                                    Toast.makeText(context, "Points mis à jour", Toast.LENGTH_SHORT).show() 
+                                .addOnSuccessListener {
+                                    Toast.makeText(context, "Points mis à jour", Toast.LENGTH_SHORT)
+                                        .show()
                                 }
                         }
                     )
@@ -109,9 +114,12 @@ fun AdminUserCard(
             ) {
                 Column {
                     Text(user.email, fontWeight = FontWeight.Bold)
-                    Text("Points actuels : ${user.points}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "Points actuels : ${user.points}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-                
+
                 if (user.role == "ADMIN") {
                     Badge(containerColor = Color.Red, contentColor = Color.White) { Text("ADMIN") }
                 }
@@ -130,7 +138,7 @@ fun AdminUserCard(
                 ) {
                     Text("+10", color = Color.White)
                 }
-                
+
                 Button(
                     onClick = { onUpdatePoints(-10) },
                     modifier = Modifier.weight(1f),

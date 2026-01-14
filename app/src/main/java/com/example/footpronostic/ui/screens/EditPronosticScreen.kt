@@ -48,7 +48,6 @@ fun EditPronosticScreen(
         }
     }
 
-    // Initialiser les scores une fois le pronostic chargé
     LaunchedEffect(pronostic) {
         pronostic?.let {
             scoreA = it.predictedScoreA.toString()
@@ -161,14 +160,15 @@ fun EditPronosticScreen(
                     fontWeight = FontWeight.Bold
                 )
 
-                // Saisie des scores
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedTextField(
                         value = scoreA,
-                        onValueChange = { if (it.length <= 2) scoreA = it.filter { c -> c.isDigit() } },
+                        onValueChange = {
+                            if (it.length <= 2) scoreA = it.filter { c -> c.isDigit() }
+                        },
                         label = { Text(pronostic.matchTeamA) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -183,7 +183,9 @@ fun EditPronosticScreen(
 
                     OutlinedTextField(
                         value = scoreB,
-                        onValueChange = { if (it.length <= 2) scoreB = it.filter { c -> c.isDigit() } },
+                        onValueChange = {
+                            if (it.length <= 2) scoreB = it.filter { c -> c.isDigit() }
+                        },
                         label = { Text(pronostic.matchTeamB) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -219,7 +221,6 @@ fun EditPronosticScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Bouton de validation
                 Button(
                     onClick = {
                         scope.launch {

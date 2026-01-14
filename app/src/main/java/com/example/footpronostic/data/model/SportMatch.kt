@@ -11,7 +11,7 @@ data class SportMatch(
     val teamA: String = "",
     val teamB: String = "",
     val dateTime: Long = 0L,
-    val status: String = "upcoming", // "upcoming" ou "finished"
+    val status: String = "upcoming",
     val scoreA: Int = 0,
     val scoreB: Int = 0,
     
