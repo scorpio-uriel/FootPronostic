@@ -21,13 +21,11 @@ class PronosticRepository {
      * Utilise le moteur de calcul centralisé PointSystem.
      */
     suspend fun validateMatchPronostics(match: SportMatch): Result<Unit> {
-        // Condition de sécurité : le match doit être terminé
         if (match.status != "finished" && match.status != "FINISHED") {
             return Result.failure(Exception("Le match n'est pas encore terminé (Status: ${match.status})"))
         }
-        
+
         return try {
-            // Récupérer les pronostics non validés pour ce match
             val querySnapshot = pronosticsCollection
                 .whereEqualTo("matchId", match.id)
                 .whereEqualTo("isValidated", false)
@@ -38,32 +36,30 @@ class PronosticRepository {
                 return Result.success(Unit) // Rien à valider
             }
 
-            // Utilisation d'une transaction pour garantir l'atomicité
             db.runTransaction { transaction ->
                 for (doc in querySnapshot.documents) {
                     val pronostic = doc.toObject(Pronostic::class.java) ?: continue
-                    
-                    // UTILISATION DU MOTEUR CENTRALISÉ
+
                     val points = PointSystem.calculatePoints(
-                        realA = match.scoreA, 
+                        realA = match.scoreA,
                         realB = match.scoreB,
-                        predA = pronostic.predictedScoreA, 
+                        predA = pronostic.predictedScoreA,
                         predB = pronostic.predictedScoreB,
                         odds = pronostic.oddsAtBet
                     )
 
-                    // 1. Mettre à jour le document Pronostic
-                    transaction.update(doc.reference, mapOf(
-                        "isValidated" to true,
-                        "pointsGained" to points
-                    ))
+                    transaction.update(
+                        doc.reference, mapOf(
+                            "isValidated" to true,
+                            "pointsGained" to points
+                        )
+                    )
 
-                    // 2. Mettre à jour le total des points de l'utilisateur
                     val userRef = usersCollection.document(pronostic.userId)
                     transaction.update(userRef, "points", FieldValue.increment(points.toLong()))
                 }
             }.await()
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

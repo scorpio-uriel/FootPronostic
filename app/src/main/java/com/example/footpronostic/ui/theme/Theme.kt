@@ -28,14 +28,14 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun FootPronosticTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Désactivez le dynamicColor pour garder notre style
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography, // Assurez-vous que Typography est défini dans Type.kt
+        typography = Typography,
         content = content
     )
 }

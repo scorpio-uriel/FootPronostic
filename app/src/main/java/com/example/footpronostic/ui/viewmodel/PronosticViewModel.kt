@@ -36,10 +36,10 @@ class PronosticViewModel(
      */
     fun loadUserPronostics(userId: String) {
         if (userId.isBlank()) return
-        
+
         // Annuler la collection précédente si elle existe
         collectionJob?.cancel()
-        
+
         collectionJob = viewModelScope.launch {
             repository.getUserPronostics(userId).collect { list ->
                 _pronostics.value = list
@@ -57,7 +57,7 @@ class PronosticViewModel(
             _errorMessage.value = null
             val pronostic = match.toPronostic(userId, scoreA, scoreB)
             val result = repository.addPronostic(pronostic)
-            
+
             result.onSuccess {
                 _successMessage.value = "Pronostic enregistré !"
             }.onFailure {
@@ -71,19 +71,19 @@ class PronosticViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            
+
             val winner = when {
                 newScoreA > newScoreB -> "teamA"
                 newScoreB > newScoreA -> "teamB"
                 else -> "draw"
             }
-            
+
             val updatedPronostic = pronostic.copy(
                 predictedScoreA = newScoreA,
                 predictedScoreB = newScoreB,
                 predictedWinner = winner
             )
-            
+
             val result = repository.updatePronostic(updatedPronostic)
             result.onSuccess {
                 _successMessage.value = "Pronostic modifié !"
@@ -112,7 +112,7 @@ class PronosticViewModel(
             }
         }
     }
-    
+
     fun validateMatch(match: SportMatch) {
         viewModelScope.launch {
             repository.validateMatchPronostics(match)

@@ -20,8 +20,8 @@ data class ApiMatchResponse(
 @Serializable
 data class FDMatch(
     val id: Int,
-    val utcDate: String,          // ex: "2026-01-12T20:00:00Z"
-    val status: String,           // "SCHEDULED", "FINISHED", "LIVE", etc.
+    val utcDate: String,
+    val status: String,
     val matchday: Int? = null,
     val homeTeam: FDTeam,
     val awayTeam: FDTeam,
@@ -34,7 +34,7 @@ data class FDTeam(
     val id: Int? = null,
     val name: String? = null,
     val shortName: String? = null,
-    val tla: String? = null       // code 3 lettres, ex: "PSG"
+    val tla: String? = null
 )
 
 @Serializable
@@ -70,7 +70,7 @@ fun FDMatch.toSportMatch(): SportMatch {
         "FINISHED" -> "finished"
         else -> "upcoming"
     }
-    
+
     val random = Random()
 
     return SportMatch(

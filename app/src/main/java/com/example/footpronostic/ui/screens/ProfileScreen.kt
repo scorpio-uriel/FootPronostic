@@ -36,8 +36,7 @@ fun ProfileScreen(
     val user = FirebaseAuth.getInstance().currentUser ?: return
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
-    
-    // Chargeur d'images personnalisé pour contourner les problèmes SSL (Certificat non trouvé)
+
     val imageLoader = remember { CoilConfig.getImageLoader(context) }
 
     var avatar by remember { mutableStateOf(AvatarConfig()) }
@@ -89,17 +88,15 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Affichage de l'avatar via API DiceBear avec SSL Bypass
             Box(contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = AvatarUtils.getAvatarUrl(avatar),
-                    imageLoader = imageLoader, // On utilise notre chargeur sécurisé
+                    imageLoader = imageLoader,
                     contentDescription = "Avatar",
                     modifier = Modifier
                         .size(160.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                    // Fallback visuel : si même avec le bypass ça échoue, on affiche les initiales
                     error = coil.compose.rememberAsyncImagePainter(
                         model = "https://ui-avatars.com/api/?name=${user.email}&background=random&size=256",
                         imageLoader = imageLoader
@@ -109,7 +106,6 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bouton de génération aléatoire
             Button(
                 onClick = { avatar = avatar.copy(seed = UUID.randomUUID().toString()) },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
@@ -121,7 +117,11 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(user.email ?: "Email", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                user.email ?: "Email",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
             AssistChip(onClick = {}, label = { Text("Rôle : $role") })
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -129,7 +129,6 @@ fun ProfileScreen(
             Text("Personnaliser le style", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sélecteur de styles (Chips)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -162,8 +161,8 @@ fun ProfileScreen(
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp), 
-                        color = Color.White, 
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
                         strokeWidth = 2.dp
                     )
                 } else {
@@ -175,7 +174,7 @@ fun ProfileScreen(
 
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { 
+                onClick = {
                     FirebaseAuth.getInstance().signOut()
                     onLogout()
                 },
@@ -185,7 +184,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Se déconnecter")
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

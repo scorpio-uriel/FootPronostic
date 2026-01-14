@@ -35,7 +35,7 @@ fun AvatarEditor(
         }
 
         Text("Choisir un style", style = MaterialTheme.typography.labelLarge)
-        
+
         // Sélecteur de style
         Row(
             modifier = Modifier.fillMaxWidth(),

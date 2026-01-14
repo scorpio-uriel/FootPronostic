@@ -15,19 +15,19 @@ data class Pronostic(
     val matchTeamA: String = "",
     val matchTeamB: String = "",
     val matchDateTime: Long = 0L,
-    
+
     // Pronostic de l'utilisateur
     val predictedScoreA: Int = 0,
     val predictedScoreB: Int = 0,
-    val predictedWinner: String = "", // "teamA", "teamB", "draw"
-    
+    val predictedWinner: String = "",
+
     // Cotes au moment du pari
     val oddsAtBet: Double = 1.0,
-    
+
     // Statut et points
     val isValidated: Boolean = false,
     val pointsGained: Int = 0,
-    
+
     @ServerTimestamp
     val createdAt: Date? = null,
     val updatedAt: Long = System.currentTimeMillis()
@@ -46,7 +46,7 @@ fun SportMatch.toPronostic(
         scoreB > scoreA -> "teamB"
         else -> "draw"
     }
-    
+
     val odds = when (winner) {
         "teamA" -> this.oddsA
         "teamB" -> this.oddsB

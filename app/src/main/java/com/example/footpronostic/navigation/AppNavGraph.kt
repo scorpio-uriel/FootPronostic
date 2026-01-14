@@ -22,7 +22,7 @@ import com.google.firebase.auth.FirebaseAuth
 @Composable
 fun AppNavGraph(startDestination: String) {
     val navController = rememberNavController()
-    
+
     // Instance unique partagée pour que tous les écrans voient les mêmes données en temps réel
     val sharedPronosticViewModel: PronosticViewModel = viewModel()
 

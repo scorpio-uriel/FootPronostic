@@ -44,7 +44,7 @@ class UserRepository {
                 .limit(limit)
                 .get()
                 .await()
-            
+
             snapshot.documents.mapNotNull { doc ->
                 val avatarMap = doc.get("avatar") as? Map<*, *>
                 UserProfile(
@@ -69,7 +69,10 @@ class UserRepository {
     suspend fun updatePoints(uid: String, increment: Int): Result<Unit> {
         return try {
             usersCollection.document(uid)
-                .update("points", com.google.firebase.firestore.FieldValue.increment(increment.toLong()))
+                .update(
+                    "points",
+                    com.google.firebase.firestore.FieldValue.increment(increment.toLong())
+                )
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {

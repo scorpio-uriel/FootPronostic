@@ -196,9 +196,11 @@ fun MatchListScreen(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
@@ -325,7 +327,10 @@ fun MatchCard(match: SportMatch, hasBet: Boolean, onBetClick: () -> Unit) {
                             contentColor = DeepStadium
                         )
                     ) {
-                        Text(if (hasBet) "Pari enregistré" else "PARIER", fontWeight = FontWeight.ExtraBold)
+                        Text(
+                            if (hasBet) "Pari enregistré" else "PARIER",
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 } else {
                     Text(

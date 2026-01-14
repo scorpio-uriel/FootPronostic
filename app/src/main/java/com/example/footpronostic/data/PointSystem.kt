@@ -14,14 +14,14 @@ object PointSystem {
      * Le résultat est multiplié par la cote du pari.
      */
     fun calculatePoints(
-        realA: Int, realB: Int, 
+        realA: Int, realB: Int,
         predA: Int, predB: Int,
         odds: Double
     ): Int {
         val basePoints = when {
             // 1. Score exact
             realA == predA && realB == predB -> 3
-            
+
             // 2. Vérification du vainqueur
             else -> {
                 val realWinner = when {
@@ -34,7 +34,7 @@ object PointSystem {
                     predB > predA -> "teamB"
                     else -> "draw"
                 }
-                
+
                 if (realWinner == predWinner) 1 else -1
             }
         }

@@ -66,12 +66,16 @@ fun LeaderboardScreen(
         }
     ) { padding ->
         if (isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(Modifier
+                .fillMaxSize()
+                .padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -105,9 +109,9 @@ fun LeaderboardItem(rank: Int, user: UserProfile) {
             Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.Center) {
                 if (rank <= 3) {
                     Icon(
-                        Icons.Default.EmojiEvents, 
+                        Icons.Default.EmojiEvents,
                         contentDescription = null,
-                        tint = when(rank) {
+                        tint = when (rank) {
                             1 -> Color(0xFFFFD700)
                             2 -> Color(0xFFC0C0C0)
                             else -> Color(0xFFCD7F32)

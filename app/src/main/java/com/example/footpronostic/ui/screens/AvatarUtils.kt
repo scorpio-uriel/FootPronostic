@@ -14,7 +14,6 @@ object AvatarUtils {
      */
     fun getAvatarUrl(config: AvatarConfig): String {
         val encodedSeed = URLEncoder.encode(config.seed, StandardCharsets.UTF_8.toString())
-        // Utilisation de la v7 qui est très stable sur Android
         return "https://api.dicebear.com/7.x/${config.style}/png?seed=$encodedSeed"
     }
 }

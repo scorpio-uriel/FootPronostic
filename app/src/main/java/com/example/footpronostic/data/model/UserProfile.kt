@@ -10,6 +10,6 @@ data class UserProfile(
     val uid: String = "",
     val email: String = "",
     val points: Int = 0,
-    val role: String = "USER", // "USER" ou "ADMIN"
+    val role: String = "USER",
     val avatar: AvatarConfig = AvatarConfig()
 )
