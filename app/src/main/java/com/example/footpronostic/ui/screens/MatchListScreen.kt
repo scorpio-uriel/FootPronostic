@@ -21,12 +21,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.footpronostic.R
+import coil.compose.AsyncImage
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.SportMatch
 import com.example.footpronostic.ui.viewmodel.MatchViewModel
@@ -76,11 +75,8 @@ fun MatchListScreen(
                     val map = doc.get("avatar") as? Map<*, *>
                     if (map != null) {
                         userAvatar = AvatarConfig(
-                            skin = map["skin"] as? String ?: "light",
-                            hair = map["hair"] as? String ?: "short",
-                            eyes = map["eyes"] as? String ?: "default",
-                            mouth = map["mouth"] as? String ?: "smile",
-                            outfit = map["outfit"] as? String ?: "hoodie"
+                            style = map["style"] as? String ?: "avataaars",
+                            seed = map["seed"] as? String ?: "default"
                         )
                     }
                 }
@@ -224,33 +220,11 @@ fun MatchListScreen(
 
 @Composable
 fun AvatarSmallPreview(avatar: AvatarConfig) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painterResource(AvatarUtils.getSkinRes(avatar.skin)),
-            null,
-            modifier = Modifier.fillMaxSize()
-        )
-        Image(
-            painterResource(AvatarUtils.getHairRes(avatar.hair)),
-            null,
-            modifier = Modifier.fillMaxSize()
-        )
-        Image(
-            painterResource(AvatarUtils.getEyesRes(avatar.eyes)),
-            null,
-            modifier = Modifier.fillMaxSize()
-        )
-        Image(
-            painterResource(AvatarUtils.getMouthRes(avatar.mouth)),
-            null,
-            modifier = Modifier.fillMaxSize()
-        )
-        Image(
-            painterResource(AvatarUtils.getOutfitRes(avatar.outfit)),
-            null,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
+    AsyncImage(
+        model = AvatarUtils.getAvatarUrl(avatar),
+        contentDescription = null,
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
