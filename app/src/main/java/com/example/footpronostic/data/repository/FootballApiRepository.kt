@@ -61,7 +61,7 @@ class FootballApiRepository {
                 fallbackMatches()
             } else {
                 println("Matchs API récupérés avec succès")
-                response.matches.map { it.toSportMatch() }
+                response.matches.map { it.toSportMatch() }.take(10)
             }
 
         } catch (e: Exception) {
