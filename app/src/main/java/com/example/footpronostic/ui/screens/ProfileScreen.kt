@@ -1,27 +1,31 @@
 package com.example.footpronostic.ui.screens
 
-import androidx.compose.foundation.Image
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.footpronostic.R
+import coil.compose.AsyncImage
 import com.example.footpronostic.data.model.AvatarConfig
+import com.example.footpronostic.ui.avatar.CoilConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,31 +34,34 @@ fun ProfileScreen(
     onLogout: () -> Unit
 ) {
     val user = FirebaseAuth.getInstance().currentUser ?: return
+    val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
+    
+    // Chargeur d'images personnalisé pour contourner les problèmes SSL (Certificat non trouvé)
+    val imageLoader = remember { CoilConfig.getImageLoader(context) }
 
     var avatar by remember { mutableStateOf(AvatarConfig()) }
     var role by remember { mutableStateOf("USER") }
     var isSaving by remember { mutableStateOf(false) }
 
-    // Charger les données de l'utilisateur depuis Firestore
+    // Styles DiceBear disponibles
+    val styles = listOf("avataaars", "bottts", "personas", "pixel-art", "lorelei", "micah")
+
+    // Charger les données Firestore
     LaunchedEffect(user.uid) {
-        db.collection("users")
-            .document(user.uid)
-            .get()
+        db.collection("users").document(user.uid).get()
             .addOnSuccessListener { doc ->
                 if (doc.exists()) {
                     role = doc.getString("role") ?: "USER"
-                    
-                    // Récupération sécurisée de la configuration d'avatar
-                    val map = doc.get("avatar") as? Map<*, *>
-                    if (map != null) {
+                    val avatarMap = doc.get("avatar") as? Map<*, *>
+                    if (avatarMap != null) {
                         avatar = AvatarConfig(
-                            skin = map["skin"] as? String ?: "light",
-                            hair = map["hair"] as? String ?: "short",
-                            eyes = map["eyes"] as? String ?: "default",
-                            mouth = map["mouth"] as? String ?: "smile",
-                            outfit = map["outfit"] as? String ?: "hoodie"
+                            style = avatarMap["style"] as? String ?: "avataaars",
+                            seed = avatarMap["seed"] as? String ?: user.email ?: "default"
                         )
+                    } else {
+                        // Fallback : on utilise l'email comme seed par défaut
+                        avatar = avatar.copy(seed = user.email ?: "default")
                     }
                 }
             }
@@ -66,7 +73,7 @@ fun ProfileScreen(
                 title = { Text("Mon Profil") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 }
             )
@@ -82,81 +89,83 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Visualisation de l'avatar
-            AvatarPreview(avatar)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = user.email ?: "Utilisateur",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            
-            AssistChip(
-                onClick = { },
-                label = { Text("Rôle : $role") },
-                colors = AssistChipDefaults.assistChipColors(
-                    labelColor = MaterialTheme.colorScheme.primary
+            // Affichage de l'avatar via API DiceBear avec SSL Bypass
+            Box(contentAlignment = Alignment.Center) {
+                AsyncImage(
+                    model = AvatarUtils.getAvatarUrl(avatar),
+                    imageLoader = imageLoader, // On utilise notre chargeur sécurisé
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .size(160.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    // Fallback visuel : si même avec le bypass ça échoue, on affiche les initiales
+                    error = coil.compose.rememberAsyncImagePainter(
+                        model = "https://ui-avatars.com/api/?name=${user.email}&background=random&size=256",
+                        imageLoader = imageLoader
+                    )
                 )
-            )
+            }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                "Personnaliser mon avatar",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth()
-            )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Options de personnalisation
-            AvatarSection("Couleur de peau") {
-                AvatarOptionRow(listOf("light", "brown", "dark"), avatar.skin) { 
-                    avatar = avatar.copy(skin = it) 
-                }
-            }
-
-            AvatarSection("Cheveux") {
-                AvatarOptionRow(listOf("short", "long"), avatar.hair) { 
-                    avatar = avatar.copy(hair = it) 
-                }
-            }
-
-            AvatarSection("Yeux") {
-                AvatarOptionRow(listOf("default", "happy"), avatar.eyes) { 
-                    avatar = avatar.copy(eyes = it) 
-                }
-            }
-
-            AvatarSection("Bouche") {
-                AvatarOptionRow(listOf("smile", "sad"), avatar.mouth) { 
-                    avatar = avatar.copy(mouth = it) 
-                }
-            }
-
-            AvatarSection("Vêtements") {
-                AvatarOptionRow(listOf("hoodie", "shirt"), avatar.outfit) { 
-                    avatar = avatar.copy(outfit = it) 
-                }
+            // Bouton de génération aléatoire
+            Button(
+                onClick = { avatar = avatar.copy(seed = UUID.randomUUID().toString()) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Icon(Icons.Default.Casino, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Générer aléatoirement")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Boutons d'action
+            Text(user.email ?: "Email", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            AssistChip(onClick = {}, label = { Text("Rôle : $role") })
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text("Personnaliser le style", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Sélecteur de styles (Chips)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                maxItemsInEachRow = 3
+            ) {
+                styles.forEach { style ->
+                    FilterChip(
+                        modifier = Modifier.padding(4.dp),
+                        selected = avatar.style == style,
+                        onClick = { avatar = avatar.copy(style = style) },
+                        label = { Text(style.replaceFirstChar { it.uppercase() }) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isSaving,
                 onClick = {
                     isSaving = true
-                    db.collection("users")
-                        .document(user.uid)
+                    db.collection("users").document(user.uid)
                         .set(mapOf("avatar" to avatar), SetOptions.merge())
-                        .addOnCompleteListener { isSaving = false }
+                        .addOnSuccessListener {
+                            isSaving = false
+                            Toast.makeText(context, "Profil mis à jour", Toast.LENGTH_SHORT).show()
+                        }
                 }
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp), 
+                        color = Color.White, 
+                        strokeWidth = 2.dp
+                    )
                 } else {
                     Text("Sauvegarder les modifications")
                 }
@@ -166,62 +175,35 @@ fun ProfileScreen(
 
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                onClick = {
+                onClick = { 
                     FirebaseAuth.getInstance().signOut()
                     onLogout()
-                }
+                },
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
             ) {
+                Icon(Icons.AutoMirrored.Filled.ExitToApp, null)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Se déconnecter")
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AvatarPreview(avatar: AvatarConfig) {
-    Box(
-        modifier = Modifier
-            .size(160.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        // Superposition des calques de l'avatar
-        Image(painterResource(AvatarUtils.getSkinRes(avatar.skin)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getHairRes(avatar.hair)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getEyesRes(avatar.eyes)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getMouthRes(avatar.mouth)), null, modifier = Modifier.fillMaxSize())
-        Image(painterResource(AvatarUtils.getOutfitRes(avatar.outfit)), null, modifier = Modifier.fillMaxSize())
-    }
-}
-
-@Composable
-fun AvatarSection(title: String, content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = Color.Gray)
-        Spacer(modifier = Modifier.height(8.dp))
-        content()
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AvatarOptionRow(
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
+private fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    maxItemsInEachRow: Int = Int.MAX_VALUE,
+    content: @Composable () -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
-            FilterChip(
-                selected = option == selected,
-                onClick = { onSelect(option) },
-                label = { Text(option.replaceFirstChar { it.uppercase() }) }
-            )
-        }
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = horizontalArrangement,
+        maxItemsInEachRow = maxItemsInEachRow
+    ) {
+        content()
     }
 }

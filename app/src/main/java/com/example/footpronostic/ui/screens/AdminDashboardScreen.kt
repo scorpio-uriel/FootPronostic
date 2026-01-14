@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,11 +42,8 @@ fun AdminDashboardScreen(
                     points = doc.getLong("points")?.toInt() ?: 0,
                     role = doc.getString("role") ?: "USER",
                     avatar = AvatarConfig(
-                        skin = avatarMap?.get("skin") as? String ?: "light",
-                        hair = avatarMap?.get("hair") as? String ?: "short",
-                        eyes = avatarMap?.get("eyes") as? String ?: "default",
-                        mouth = avatarMap?.get("mouth") as? String ?: "smile",
-                        outfit = avatarMap?.get("outfit") as? String ?: "hoodie"
+                        style = avatarMap?.get("style") as? String ?: "avataaars",
+                        seed = avatarMap?.get("seed") as? String ?: "default"
                     )
                 )
             } ?: emptyList()
@@ -60,7 +57,7 @@ fun AdminDashboardScreen(
                 title = { Text("Dashboard Admin 🛡️") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 }
             )
