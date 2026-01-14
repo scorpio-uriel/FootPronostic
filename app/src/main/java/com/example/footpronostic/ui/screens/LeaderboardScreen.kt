@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,13 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.footpronostic.data.model.AvatarConfig
 import com.example.footpronostic.data.model.UserProfile
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 
 /**
- * Écran du classement des utilisateurs.
+ * Écran du classement des utilisateurs utilisant DiceBear.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +44,8 @@ fun LeaderboardScreen(
                         email = doc.getString("email") ?: "Anonyme",
                         points = doc.getLong("points")?.toInt() ?: 0,
                         avatar = AvatarConfig(
-                            skin = avatarMap?.get("skin") as? String ?: "light",
-                            hair = avatarMap?.get("hair") as? String ?: "short",
-                            eyes = avatarMap?.get("eyes") as? String ?: "default",
-                            mouth = avatarMap?.get("mouth") as? String ?: "smile",
-                            outfit = avatarMap?.get("outfit") as? String ?: "hoodie"
+                            style = avatarMap?.get("style") as? String ?: "avataaars",
+                            seed = avatarMap?.get("seed") as? String ?: "default"
                         )
                     )
                 } ?: emptyList()
@@ -61,7 +59,7 @@ fun LeaderboardScreen(
                 title = { Text("Classement Mondial 🏆") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 }
             )
@@ -120,9 +118,13 @@ fun LeaderboardItem(rank: Int, user: UserProfile) {
                 }
             }
 
-            // Avatar
+            // Avatar DiceBear
             Box(modifier = Modifier.size(45.dp)) {
-                AvatarMediumPreview(user.avatar)
+                AsyncImage(
+                    model = AvatarUtils.getAvatarUrl(user.avatar),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             Spacer(Modifier.width(16.dp))

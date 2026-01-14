@@ -1,9 +1,9 @@
 package com.example.footpronostic.data.model
 
+/**
+ * Configuration de l'avatar utilisant l'API DiceBear.
+ */
 data class AvatarConfig(
-    var skin: String = "light",
-    var hair: String = "short",
-    var eyes: String = "default",
-    var mouth: String = "smile",
-    var outfit: String = "hoodie"
+    val style: String = "avataaars",
+    val seed: String = "default"
 )

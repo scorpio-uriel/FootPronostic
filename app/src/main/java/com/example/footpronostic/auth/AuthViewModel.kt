@@ -1,8 +1,8 @@
 package com.example.footpronostic.auth
 
 import androidx.lifecycle.ViewModel
+import com.example.footpronostic.ui.avatar.AvatarGenerator
 import com.google.firebase.auth.FirebaseAuth
-import com.example.footpronostic.data.avatar.AvatarGenerator
 import com.google.firebase.firestore.FirebaseFirestore
 
 
@@ -31,12 +31,13 @@ class AuthViewModel : ViewModel() {
             .addOnSuccessListener { result ->
                 val uid = result.user?.uid ?: return@addOnSuccessListener
 
-                val randomAvatar = AvatarGenerator.random()
+                val randomAvatar = AvatarGenerator.generateRandomAvatar()
 
                 val userData = mapOf(
                     "email" to email,
                     "role" to "USER",
-                    "avatar" to randomAvatar
+                    "avatar" to randomAvatar,
+                    "points" to 0
                 )
 
                 FirebaseFirestore.getInstance()

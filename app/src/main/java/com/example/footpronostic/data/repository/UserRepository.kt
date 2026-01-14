@@ -24,11 +24,8 @@ class UserRepository {
                     points = doc.getLong("points")?.toInt() ?: 0,
                     role = doc.getString("role") ?: "USER",
                     avatar = AvatarConfig(
-                        skin = avatarMap?.get("skin") as? String ?: "light",
-                        hair = avatarMap?.get("hair") as? String ?: "short",
-                        eyes = avatarMap?.get("eyes") as? String ?: "default",
-                        mouth = avatarMap?.get("mouth") as? String ?: "smile",
-                        outfit = avatarMap?.get("outfit") as? String ?: "hoodie"
+                        style = avatarMap?.get("style") as? String ?: "avataaars",
+                        seed = avatarMap?.get("seed") as? String ?: "default"
                     )
                 )
             } else null
@@ -56,11 +53,8 @@ class UserRepository {
                     points = doc.getLong("points")?.toInt() ?: 0,
                     role = doc.getString("role") ?: "USER",
                     avatar = AvatarConfig(
-                        skin = avatarMap?.get("skin") as? String ?: "light",
-                        hair = avatarMap?.get("hair") as? String ?: "short",
-                        eyes = avatarMap?.get("eyes") as? String ?: "default",
-                        mouth = avatarMap?.get("mouth") as? String ?: "smile",
-                        outfit = avatarMap?.get("outfit") as? String ?: "hoodie"
+                        style = avatarMap?.get("style") as? String ?: "avataaars",
+                        seed = avatarMap?.get("seed") as? String ?: "default"
                     )
                 )
             }
