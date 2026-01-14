@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.footpronostic.data.model.SportMatch
@@ -109,26 +110,31 @@ fun CreatePronosticScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = match.teamA,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "VS",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Black
                             )
                             Text(
                                 text = match.teamB,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center, // Centre le texte dans sa moitié
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
